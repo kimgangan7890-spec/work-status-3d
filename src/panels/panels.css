@@ -1,0 +1,193 @@
+.pn { font: 13px/1.45 system-ui, "Noto Sans KR", sans-serif; color: #e6ebff; background: rgba(20,25,42,.88); border: 1px solid rgba(160,180,255,.25); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.35); pointer-events: auto; display: flex; flex-direction: column; box-sizing: border-box; }
+.pn-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-weight: 600; font-size: 15px; }
+.pn-toggle { font: inherit; color: inherit; background: rgba(255,255,255,.12); border: 0; border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+.pn-toggle:hover { background: rgba(255,255,255,.22); }
+.pn-body { padding: 0 10px 10px; overflow-y: auto; min-height: 0; }
+.pn.collapsed .pn-body { display: none; }
+.pn-board { flex: 1 1 auto; min-height: 0; width: auto; margin: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; font-size: 18px; }
+.pn-board .pn-head { display: none; }
+.pn-log { position: fixed; left: 12px; bottom: calc(var(--cmd-h, 0px) + 20px); width: 380px; max-width: calc(100vw - var(--board-w) - 36px); max-height: 20vh; font-size: 15px; }
+body.has-cmd .pn-log { bottom: calc(var(--cmd-h, 100px) + 24px); max-height: min(20vh, calc(100vh - var(--cmd-h, 100px) - 60px)); }
+.pn h3 { margin: 12px 0 6px; font-size: 20px; color: #9fb0ff; font-weight: 600; }
+.pn ul { list-style: none; margin: 0; padding: 0; }
+.pn-mvp { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 3px 10px; border-radius: 999px; font-size: 17px; border: 1px solid transparent; }
+.chip small { font-size: 15px; opacity: .85; margin-left: 6px; }
+.chip.in { background: #1f5a37; border-color: #3fbf75; }
+.chip.out { background: #4a4f5c; border-color: #8a90a0; }
+.chip.pending { background: #6a5316; border-color: #e0b43a; }
+.zone { margin: 8px 0; padding: 8px 10px; background: rgba(255,255,255,.06); border-radius: 8px; }
+.zone-name { font-weight: 700; font-size: 20px; overflow-wrap: anywhere; }
+.zone-owner { color: #b8c3f0; }
+.zone-owner.unknown { color: #ff9a9a; }
+.task { display: grid; grid-template-columns: 2.6em 1fr 3.4em; gap: 4px 6px; align-items: center; margin-top: 6px; padding: 4px 6px; border-radius: 6px; }
+.task-id { color: #9fb0ff; }
+.task-title { overflow-wrap: anywhere; }
+.task-pct { text-align: right; }
+.bar { grid-column: 1 / -1; height: 14px; border-radius: 3px; background: rgba(255,255,255,.14); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: #4fa3ff; transition: width .6s ease-out; }
+.task.done .bar > i { background: #3fbf75; }
+.task.blocked .bar > i { background: #e05555; }
+.task.missing { opacity: .6; }
+.empty { color: #9aa3c4; padding: 4px 0; }
+.ev { display: grid; grid-template-columns: 3.4em 1fr; gap: 2px 8px; padding: 4px 6px; border-radius: 6px; border-left: 3px solid transparent; }
+.ev + .ev { margin-top: 2px; }
+.ev-time { color: #9fb0ff; font-variant-numeric: tabular-nums; }
+.ev-route { color: #b8c3f0; }
+.ev-title { font-weight: 600; overflow-wrap: anywhere; }
+.ev-sum { grid-column: 2; color: #cdd5f5; overflow-wrap: anywhere; }
+.ev.fresh { animation: evflash 2.4s ease-out; border-left-color: #ffd54a; }
+@keyframes evflash { 0% { background: rgba(255,213,74,.55); } 100% { background: rgba(255,213,74,0); } }
+@keyframes evhold { 0% { background: rgba(255,213,74,.25); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .ev.fresh { animation: evhold 2.4s steps(1, end) 1 forwards; } }
+
+/* ---- 작업 지시(데스크톱): 화면 아래 가운데 한 줄 바 ---- */
+.tabbar, .pn-cmd { display: none; }
+.cmd-bar { position: fixed; left: calc((100vw - var(--board-w)) / 2); transform: translateX(-50%); bottom: 12px; z-index: 5; width: min(760px, calc(100vw - var(--board-w) - 24px)); box-sizing: border-box; padding: 6px 10px; font: 13px/1.45 system-ui, "Noto Sans KR", sans-serif; color: #e6ebff; background: rgba(20,25,42,.92); border: 1px solid rgba(160,180,255,.25); border-radius: 10px; pointer-events: auto; }
+.cmd-bar[hidden], .cmd-list[hidden], .cmd-form[hidden], .cmd-login[hidden], .tab[hidden] { display: none; }
+.cmd-form, .cmd-login { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cmd-to, .cmd-kind { display: flex; flex-wrap: wrap; gap: 4px; }
+.cmd-to[hidden], .cmd-team-note[hidden] { display: none; }
+.cmd-team-note { padding: 4px 10px; color: #cfe0ff; }
+.cmd-kind { margin-right: 6px; padding-right: 8px; border-right: 1px solid rgba(160,180,255,.25); }
+.cmd-to-btn, .cmd-kind-btn, .cmd-btn { font: inherit; color: inherit; background: rgba(255,255,255,.12); border: 1px solid transparent; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.cmd-to-btn.on, .cmd-kind-btn.on { background: #2c4a9a; border-color: #8fa8ff; }
+.cmd-input { flex: 1 1 160px; min-width: 0; font: inherit; color: inherit; background: rgba(0,0,0,.35); border: 1px solid rgba(160,180,255,.3); border-radius: 6px; padding: 4px 8px; }
+.cmd-count { min-width: 3em; text-align: right; color: #9fb0ff; font-variant-numeric: tabular-nums; }
+.cmd-count.over { color: #ff8a8a; }
+.cmd-notice { flex-basis: 100%; font-size: 12px; color: #aab4dc; }
+.cmd-msg { flex-basis: 100%; font-size: 12px; color: #ffd98a; }
+.cmd-msg:empty { display: none; }
+.cmd-card { margin: 6px 0; padding: 6px 8px; background: rgba(255,255,255,.06); border-radius: 8px; }
+.cmd-card-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cmd-card-to { font-weight: 600; }
+.cmd-card-time, .cmd-card-time2, .cmd-card-note { color: #9fb0ff; font-size: 12px; }
+.cmd-card-text { overflow-wrap: anywhere; margin-top: 2px; }
+.cmd-card-warn { color: #ffd98a; font-size: 12px; margin-top: 2px; }
+.cmd-chip { padding: 0 8px; border-radius: 999px; font-size: 12px; background: #4a4f5c; }
+.cmd-chip.delivered { background: #6a5316; }
+.cmd-chip.done { background: #1f5a37; }
+.cmd-chip.approval { background: #7a2b2b; }
+
+/* ---- 모바일 세로: 하단 탭 바 + 한 개만 올라오는 시트 ---- */
+@media (max-width: 600px) {
+  .tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: rgba(20,25,42,.96); border-top: 1px solid rgba(160,180,255,.25); }
+  .tab { flex: 1; min-height: 44px; font: 600 16px system-ui, "Noto Sans KR", sans-serif; color: #e6ebff; background: transparent; border: 0; cursor: pointer; }
+  .tab.on { background: #2c4a9a; }
+  .pn-log, .pn-cmd { background: #14192a; display: none; position: fixed; left: 0; right: 0; bottom: 44px; top: auto; width: auto; max-width: none; margin: 0; max-height: 60vh; overflow-y: auto; z-index: 10; border-radius: 12px 12px 0 0; animation: sheetup .2s ease-out; }
+  .pn-log.sheet-open, .pn-cmd.sheet-open { display: flex; }
+  .pn-toggle { display: none; }
+  .pn { font-size: 16px; }
+  .pn-board { font-size: 16px; }
+  body.has-cmd .pn-log { bottom: 44px; max-height: 60vh; }
+  .cmd-bar { position: static; transform: none; width: auto; border: 0; background: transparent; padding: 0 10px; }
+  .cmd-to-btn, .cmd-kind-btn, .cmd-btn { min-height: 44px; }
+  .cmd-input { min-height: 44px; font-size: 16px; }
+  .cmd-bar, .cmd-to-btn, .cmd-kind-btn, .cmd-btn, .cmd-count, .cmd-team-note, .cmd-login, .pn-head, .ll-btn { font-size: 16px; }
+}
+@keyframes sheetup { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pn-log, .pn-cmd { animation: none; } }
+
+/* ---- 내 데이터 불러오기 ---- */
+.ll { padding: 4px 0 6px; }
+.ll-btn { font: inherit; color: inherit; background: rgba(255,255,255,.12); border: 1px solid rgba(160,180,255,.3); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.ll-btn:hover { background: rgba(255,255,255,.22); }
+.ll-msg { margin-top: 4px; font-size: 12px; color: #ffd98a; }
+.ll-msg:empty { display: none; }
+.ll-errors { margin-top: 2px; font-size: 12px; color: #ff9a9a; overflow-wrap: anywhere; }
+.ll-badge { margin-top: 4px; padding: 3px 8px; border-radius: 6px; font-size: 12px; background: #1f5a37; border: 1px solid #3fbf75; }
+.ll-warn { margin-top: 4px; font-size: 12px; color: #ffd98a; }
+.ll-badge[hidden], .ll-warn[hidden] { display: none; }
+@media (max-width: 600px) { .ll-btn { min-height: 44px; } }
+
+/* ---- 메인 보드(DESIGN3.md §1~2): 항상 보이는 HTML 패널 ---- */
+:root { --board-w: 440px; }
+.pn-board .pn-body { padding: 0 16px 16px; }
+.task-pct { font-weight: 700; }
+.task.flash { outline: 2px solid #ffd54a; background: rgba(255,213,74,.28); animation: taskflash 1.2s ease-out; }
+@keyframes taskflash { 0% { background: rgba(255,213,74,.6); } 100% { background: rgba(255,213,74,.28); } }
+@media (prefers-reduced-motion: reduce) { .task.flash { animation: none; outline: 2px solid #ffd54a; background: none; } .bar > i { transition: none; } }
+.ag-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-top: 4px; }
+.ag { min-width: 0; padding: 6px 8px; border-left: 6px solid #8a90a0; border-radius: 6px; background: rgba(255,255,255,.08); }
+.ag-name { font-weight: 700; overflow-wrap: anywhere; }
+.ag-status { font-size: 15px; color: #c3cdf5; }
+.ag.working .ag-status { color: #8fe0b0; }
+.ag.blocked .ag-status { color: #ff9a9a; font-weight: 700; }
+.ag-task { font-size: 15px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.pn { color: #f2f4ff; }
+.pn h3, .zone-owner, .task-id { color: #c3cdf5; }
+.cmd-notice, .cmd-msg, .cmd-card-time, .cmd-card-time2, .cmd-card-note, .cmd-card-warn, .cmd-chip, .ll-msg, .ll-errors, .ll-badge, .ll-warn, .empty { font-size: 15px; }
+@media (max-width: 600px) {
+  :root { --board-w: 0px; }
+  .cmd-notice, .cmd-msg, .cmd-card-time, .cmd-card-time2, .cmd-card-note, .cmd-card-warn, .cmd-chip, .ll-msg, .ll-errors, .ll-badge, .ll-warn, .empty, .ag-status, .ag-task, .chip small { font-size: 16px; }
+  .chip { font-size: 16px; }
+  .zone-name, .pn h3 { font-size: 18px; }
+  .bar { height: 12px; }
+  .pn-board .pn-body { padding: 0 12px 12px; }
+  .ag-row { gap: 6px; }
+  .ag { padding: 6px; }
+}
+
+/* 팀 탭·보드 팀 묶음(DESIGN4.md). 팀이 2개 미만이면 DOM에 나오지 않는다. */
+.teamtabs { position: fixed; left: 12px; top: 12px; z-index: 5; display: flex; gap: 6px; max-width: calc(100vw - var(--board-w) - 24px); overflow-x: auto; padding-bottom: 2px; font: 600 16px/1.2 system-ui, "Noto Sans KR", sans-serif; }
+.teamtabs[hidden] { display: none; }
+.tt { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 14px; color: #e6ebff; background: rgba(20,25,42,.88); border: 1px solid rgba(160,180,255,.3); border-radius: 999px; font: inherit; cursor: pointer; }
+.tt.on { background: #2b3568; border-color: #9fb0ff; color: #fff; }
+.tt.flash { animation: ttflash 1.2s ease-out 1; }
+@keyframes ttflash { 0%, 60% { box-shadow: 0 0 0 3px #ffe27a; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.tt-dot { width: 10px; height: 10px; border-radius: 50%; background: #8a90a0; flex: 0 0 auto; }
+.tt.working .tt-dot, .ag-group.working .tt-dot { background: #4fa3ff; }
+.tt.blocked .tt-dot, .ag-group.blocked .tt-dot { background: #ff4d4d; }
+.ag-group { margin-bottom: 8px; }
+.ag-ghead { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 8px; text-align: left; color: #f2f4ff; background: rgba(255,255,255,.08); border: 0; border-radius: 8px; font: 700 17px/1.3 system-ui, "Noto Sans KR", sans-serif; cursor: pointer; }
+.ag-group.shut .ag-row { display: none; }
+@media (max-width: 600px) { .teamtabs { max-width: calc(100vw - 24px); } }
+@media (prefers-reduced-motion: reduce) { .tt.flash { animation: none; box-shadow: 0 0 0 3px #ffe27a; } }
+
+/* 로그인 전: 비어 있는 3D 화면·로그·'불러오는 중' 문구를 숨긴다 */
+body.pre-login #scene, body.pre-login .pn-log, body.pre-login .pn-board .empty, body.pre-login .ll { display: none; }
+
+/* ---- 방 이름표·요약 카드·팀 화면(DESIGN5-panels.md). 팀이 2개 미만이면 DOM에 나오지 않는다. ---- */
+#room-tags { position: fixed; left: 0; top: 0; width: calc(100vw - var(--board-w)); height: 100vh; z-index: 4; pointer-events: none; overflow: hidden; }
+#room-tags[hidden], .room-cards[hidden], .room-tag[hidden] { display: none; }
+.room-tag { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; box-sizing: border-box; padding: 6px 14px; color: #f2f4ff; background: rgba(20,25,42,.9); border: 1px solid rgba(160,180,255,.4); border-radius: 999px; font: 600 15px/1.2 system-ui, "Noto Sans KR", sans-serif; cursor: pointer; white-space: nowrap; }
+.room-tag:hover, .room-tag:focus-visible { background: #2b3568; border-color: #9fb0ff; }
+.room-tag .rt-name { flex: 1 1 auto; min-width: 3em; overflow: hidden; text-overflow: ellipsis; }
+.room-tag[data-compact] { gap: 6px; padding: 6px 10px; }
+.room-tag[data-compact] .rt-sum { display: none; }
+.rt-dot { width: 10px; height: 10px; border-radius: 50%; background: #8a90a0; flex: 0 0 auto; }
+.working .rt-dot { background: #4fa3ff; }
+.blocked .rt-dot { background: #ff4d4d; }
+.rt-count, .rt-sum { flex: 0 0 auto; color: #c3cdf5; font-weight: 500; }
+.room-tag.flash, .room-card.flash { animation: ttflash 1.2s ease-out 1; }
+.room-cards { display: none; }
+.tt-back { font-weight: 700; }
+.team-card { margin: 4px 0 10px; padding: 8px 10px; background: rgba(255,255,255,.1); border-radius: 8px; }
+.team-card-head { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 20px; }
+.team-card.working .tt-dot { background: #4fa3ff; }
+.team-card.blocked .tt-dot { background: #ff4d4d; }
+.team-card-name { overflow-wrap: anywhere; }
+.team-card-count, .team-card-sum { color: #c3cdf5; font-weight: 500; font-size: 15px; }
+.team-cmd, .ag-cmd { display: inline-block; min-height: 44px; margin-top: 6px; padding: 6px 14px; font: 600 16px system-ui, "Noto Sans KR", sans-serif; color: #f2f4ff; background: #2c4a9a; border: 1px solid #8fa8ff; border-radius: 6px; cursor: pointer; }
+.ag-cmd { grid-column: 1 / -1; }
+@media (max-width: 600px) {
+  #room-tags { display: none; }
+  body[data-view="floor"] .room-cards { display: flex; flex-direction: column; gap: 8px; padding: 8px 0 12px; }
+  .room-card { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; box-sizing: border-box; padding: 8px 12px; text-align: left; color: #f2f4ff; background: rgba(255,255,255,.1); border: 1px solid rgba(160,180,255,.3); border-radius: 8px; font: 600 16px/1.3 system-ui, "Noto Sans KR", sans-serif; cursor: pointer; }
+  .room-card .rt-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  .room-card .rt-count, .room-card .rt-sum { font-size: 16px; }
+  .tt-back, .team-cmd, .ag-cmd { font-size: 16px; }
+  .team-card-count, .team-card-sum { font-size: 16px; }
+  /* 폰 floor: 3D 층 화면 없이 패널이 화면을 쓴다 */
+  body[data-view="floor"] #scene { display: none; }
+  /* 팀 탭 줄이 장면 위를 덮지 않게, 탭이 보일 때는 장면을 탭 줄 아래로 내린다(이름표 가림 방지). */
+  body:has(.teamtabs:not([hidden])) #scene { top: 60px; height: calc(42vh - 60px); }
+  body[data-view="floor"] #panels { top: 0; }
+  body[data-view="floor"] .ag-group { display: none; } /* 폰 층 전체: 방 요약 카드가 같은 정보를 보여 준다 */
+}
+@media (min-width: 601px) { .room-card { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .room-tag.flash, .room-card.flash { animation: none; box-shadow: none; outline: 2px solid #ffd54a; }
+  .room-tag { transition: none; }
+}
+body.pre-login #room-tags, body.pre-login .room-cards, body.pre-login .team-card, body.pre-login .tt-back, body.pre-login .team-cmd, body.pre-login .ag-cmd { display: none; }

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>작업현황 3D</title>
+  <link rel="icon" href="data:," />
+  <style>
+    :root { --board-w: 440px; }
+    html, body { margin: 0; height: 100%; background: #1b2030; overflow: hidden; font-family: system-ui, "Noto Sans KR", sans-serif; }
+    #scene { position: fixed; left: 0; top: 0; width: calc(100vw - var(--board-w)); height: 100vh; display: block; }
+    #panels { position: fixed; right: 0; top: 0; bottom: 0; width: var(--board-w); display: flex; flex-direction: column; box-sizing: border-box; background: #14192a; border-left: 1px solid rgba(160,180,255,.25); }
+    #hud { padding: 12px 16px; color: #f2f4ff; font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+    #hud.err { background: rgba(160,30,30,.75); color: #fff; font-size: 16px; font-weight: 600; }
+    @media (max-width: 600px) {
+      :root { --board-w: 0px; }
+      #scene { width: 100vw; height: 42vh; }
+      #panels { left: 0; right: 0; top: 42vh; bottom: 44px; width: auto; border-left: 0; border-top: 1px solid rgba(160,180,255,.25); }
+      #hud { padding: 8px 12px; font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="panels"><div id="hud">불러오는 중…</div></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

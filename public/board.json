@@ -1,0 +1,53 @@
+{
+  "mvp": [
+    {
+      "id": "M1",
+      "title": "핵심 기능 A",
+      "status": "in"
+    },
+    {
+      "id": "M2",
+      "title": "핵심 기능 B",
+      "status": "in"
+    },
+    {
+      "id": "M3",
+      "title": "나중에 할 기능",
+      "status": "pending"
+    },
+    {
+      "id": "M4",
+      "title": "이번에는 제외",
+      "status": "out"
+    }
+  ],
+  "zones": [
+    {
+      "id": "z-a",
+      "name": "화면·문서",
+      "ownerAgentId": "claude",
+      "taskIds": [
+        "S1",
+        "S2"
+      ]
+    },
+    {
+      "id": "z-b",
+      "name": "구현·테스트",
+      "ownerAgentId": "gpt",
+      "taskIds": [
+        "S4",
+        "S5"
+      ]
+    },
+    {
+      "id": "z-c",
+      "name": "조율·점검",
+      "ownerAgentId": "chief",
+      "taskIds": [
+        "S3",
+        "S6"
+      ]
+    }
+  ]
+}
