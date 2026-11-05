@@ -1,5 +1,7 @@
 import { createStore } from "./scene/store.js";
 import { createOffice } from "./scene/office.js";
+import { createCampus } from "./panels/campus.js";
+import { validateProjects } from "./shared/projects.js";
 
 const canvas = document.getElementById("scene");
 const hud = document.getElementById("hud");
@@ -25,7 +27,10 @@ store.on("state", ({ state }) => {
   window.__ready = true;
 });
 store.on("board", ({ board }) => office.syncBoard(board));
-store.on("events", (events) => events.forEach((ev, i) => setTimeout(() => office.playEvent(ev), i * 600)));
+let epoch = 0; // 프로젝트를 바꾸면 올라가서, 이전 프로젝트 이벤트의 예약 재생을 버린다
+store.on("events", (events) => { const my = epoch; events.forEach((ev, i) => setTimeout(() => { if (my === epoch) office.playEvent(ev); }, i * 600)); });
+// 프로젝트 전환: 새 데이터가 오기 전까지 이전 프로젝트의 장면·로그를 숨긴다(실패해도 이전 화면이 새 프로젝트처럼 보이지 않게).
+store.on("reset", () => { epoch++; document.body.classList.add("pre-login"); });
 store.on("error", (msg) => {
   // 로그인 전의 401은 오류가 아니라 정상 흐름이다. 안내만 보여 주고 빨간 경고는 쓰지 않는다.
   if (/HTTP 401/.test(msg) && !store.state) {
@@ -56,7 +61,32 @@ async function boot() {
     }
     document.body.classList.remove("pre-login");
   }
+  const projects = await loadProjects(buildPublic);
+  if (projects.length >= 1) {
+    // 단지 선택 카드(2개 이상일 때 보임)가 저장된/첫 프로젝트로 store를 시작한다(선택 시 setSource).
+    createCampus({
+      host: document.getElementById("panels"), projects, base, viaServer: !buildPublic,
+      onSelect: (p, src) => { hud.textContent = `${p.name} 불러오는 중…`; hud.classList.remove("err"); window.__ready = false; store.setSource(src); },
+    });
+    return;
+  }
   store.start();
+}
+
+// 프로젝트 목록: 서버 모드는 /api/projects, 정적 공개판은 projects.json(없으면 단일 프로젝트로 기존 동작).
+async function loadProjects(buildPublic) {
+  try {
+    if (!buildPublic) {
+      const r = await fetch("/api/projects", { credentials: "same-origin", cache: "no-store" });
+      if (!r.ok) return [];
+      const list = (await r.json()).projects;
+      return Array.isArray(list) ? list.map((p) => ({ id: p.id, name: p.name, repo: p.remote ? "server/relay" : undefined })) : [];
+    }
+    const r = await fetch(`${base}projects.json`, { cache: "no-store" });
+    if (!r.ok) return [];
+    const obj = await r.json();
+    return validateProjects(obj, { allowPrivate: false }).length ? [] : obj.projects;
+  } catch { return []; }
 }
 boot();
 window.__office = office; window.__store = store;

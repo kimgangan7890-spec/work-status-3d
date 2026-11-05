@@ -191,3 +191,14 @@ body.pre-login #scene, body.pre-login .pn-log, body.pre-login .pn-board .empty, 
   .room-tag { transition: none; }
 }
 body.pre-login #room-tags, body.pre-login .room-cards, body.pre-login .team-card, body.pre-login .tt-back, body.pre-login .team-cmd, body.pre-login .ag-cmd { display: none; }
+
+/* 단지 화면: 프로젝트(사무동) 선택 */
+.campus { border-bottom: 1px solid rgba(160,180,255,.18); }
+.campus-bar { display: block; width: 100%; padding: 8px 16px; background: #1c2340; color: #f2f4ff; border: 0; text-align: left; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+.campus-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; padding: 8px 12px; max-height: 40vh; overflow-y: auto; }
+.campus-card { text-align: left; padding: 8px 10px; background: #1a2038; color: #e6e9ff; border: 1px solid rgba(160,180,255,.25); border-radius: 6px; font: inherit; cursor: pointer; min-width: 0; }
+.campus-card.on { border-color: #8fb4ff; background: #232c52; }
+.campus-name { font-weight: 700; font-size: 14px; overflow-wrap: anywhere; }
+.campus-sum { margin-top: 2px; font-size: 12px; color: #aab3d9; }
+.campus-sum.warn { color: #ffb3a0; }
+.campus-sum.err { color: #ff8f8f; }

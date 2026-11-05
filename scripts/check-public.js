@@ -2,6 +2,7 @@
 // 사용: node scripts/check-public.js [샘플폴더=public-sample] [빌드폴더=dist-public]
 import fs from "node:fs"; import path from "node:path"; import { fileURLToPath } from "node:url";
 import { validateStatus, validateBoard, crossCheck, AGENT_IDS } from "../src/shared/validate.js";
+import { validateProjects } from "../src/shared/projects.js";
 import { looksSecret } from "../src/shared/secret.js";
 
 // 공개되면 안 되는 말(도구·모델명·경로). 사람·프로젝트명 같은 개인 표기는 코드에 적지 않고 아래 privateDeny()로 받는다.
@@ -37,7 +38,19 @@ export function checkSample(dir) {
       if (looksSecret(s)) problems.push(`${name}: 키·토큰·이메일 모양 → "${s.slice(0, 20)}…"`);
     }
   }
-  for (const f of fs.readdirSync(dir)) if (!["status.json", "board.json"].includes(f)) problems.push(`샘플 폴더에 예상 밖 파일: ${f}`);
+  // 공개판의 projects.json(선택): 형식 통과, 비공개 저장소(private) 없음, 금지어·비밀 모양 없음
+  if (fs.existsSync(path.join(dir, "projects.json"))) {
+    const pj = read("projects.json");
+    if (pj) {
+      problems.push(...validateProjects(pj).map((e) => `projects.json: ${e}`));
+      for (const x of Array.isArray(pj.projects) ? pj.projects : []) if (x && x.private) problems.push(`projects.json: 공개판에 private 프로젝트(${x.id})는 쓸 수 없다`);
+      for (const t of strings(pj)) {
+        for (const re of denyList()) if (re.test(t)) problems.push(`projects.json: 공개 금지어(${re}) → "${t.slice(0, 40)}"`);
+        if (looksSecret(t)) problems.push(`projects.json: 키·토큰·이메일 모양 → "${t.slice(0, 20)}…"`);
+      }
+    }
+  }
+  for (const f of fs.readdirSync(dir)) if (!["status.json", "board.json", "projects.json"].includes(f)) problems.push(`샘플 폴더에 예상 밖 파일: ${f}`);
   return problems;
 }
 
@@ -83,11 +96,12 @@ export function checkDoc(file) {
 
 // 공개 저장소 폴더 검사(GitHub Pages용 평평한 구조): 최상위에 index.html, assets/, 샘플 json 두 개, README.md, ADOPT.md만 있어야 한다.
 export const RELEASE_ITEMS = ["index.html", "assets", "status.json", "board.json", "README.md", "ADOPT.md"];
+export const OPTIONAL_RELEASE_ITEMS = ["projects.json"]; // 여러 프로젝트를 읽는 공개판만 둔다
 export function checkRelease(dir, sampleDir) {
   const problems = [];
   if (!fs.existsSync(dir)) return [`폴더 없음: ${dir}`];
   const found = fs.readdirSync(dir);
-  for (const f of found) if (!RELEASE_ITEMS.includes(f)) problems.push(`올리면 안 되는 항목: ${f}`);
+  for (const f of found) if (!RELEASE_ITEMS.includes(f) && !OPTIONAL_RELEASE_ITEMS.includes(f)) problems.push(`올리면 안 되는 항목: ${f}`);
   for (const f of RELEASE_ITEMS) if (!found.includes(f)) problems.push(`빠진 항목: ${f}`);
   problems.push(...checkBuild(dir, sampleDir));
   for (const f of ["README.md", "ADOPT.md"]) if (found.includes(f)) problems.push(...checkDoc(path.join(dir, f)));

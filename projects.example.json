@@ -1,0 +1,7 @@
+{
+  "projects": [
+    { "id": "web",  "name": "웹사이트", "repo": "my-org/website-status", "branch": "main", "dir": "status" },
+    { "id": "app",  "name": "모바일 앱", "repo": "my-org/app-status" },
+    { "id": "priv", "name": "비공개 프로젝트", "repo": "my-org/secret-status", "private": true }
+  ]
+}

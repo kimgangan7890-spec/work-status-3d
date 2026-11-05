@@ -13,6 +13,7 @@
     "sample": "node scripts/public-sample.js",
     "build:public": "vite build --mode public --outDir dist-public --emptyOutDir",
     "check:public": "node scripts/check-public.js",
+    "check:data": "node scripts/check-data.js",
     "release:public": "npm run sample && npm run build:public && npm run check:public"
   },
   "dependencies": {

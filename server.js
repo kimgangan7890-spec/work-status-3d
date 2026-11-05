@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { validateProjects, filePathOf } from "./src/shared/projects.js";
 import { looksSecret } from "./src/shared/secret.js";
 import { checkTarget, targetsOf, TO_VALUES, MAX_COMMAND_CHARS, addCommand, recent } from "./src/shared/inbox.js";
 
@@ -20,6 +21,44 @@ function currentTargets() {
   try { return targetsOf(JSON.parse(fs.readFileSync(path.join(DATA_DIR, "status.json"), "utf8"))) ?? { agentIds: TO_VALUES, teamIds: ["main"] }; } catch { return { agentIds: TO_VALUES, teamIds: ["main"] }; }
 }
 const INBOX_FILE = process.env.INBOX_FILE || path.join(ROOT, "data", "inbox.json");
+// 프로젝트 목록(DATA_DIR/projects.json). 없으면 단일 프로젝트(기존 동작). 비공개 저장소는 GITHUB_TOKEN(읽기 전용 토큰)으로만 읽는다.
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
+const GITHUB_API = process.env.GITHUB_API_BASE || "https://api.github.com";
+// 토큰이 없으면 GitHub API 한도가 시간당 60회라서 캐시를 길게 잡는다(토큰이 있으면 시간당 5000회). 직전 성공본은 STALE_MS까지만 대신 내보낸다.
+const GH_TTL_MS = Number(process.env.GITHUB_CACHE_MS || (GITHUB_TOKEN ? 10_000 : 120_000)), GH_MAX_BYTES = 1_000_000, GH_STALE_MS = 10 * 60_000;
+const ghInflight = new Map(); // 같은 파일을 동시에 요청하면 GitHub 호출 하나로 합친다
+const ghCache = new Map(); // "<id>/<file>" -> {at, body}
+function loadProjects() {
+  try {
+    const obj = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "projects.json"), "utf8"));
+    return validateProjects(obj).length ? [] : obj.projects;
+  } catch { return []; }
+}
+// 이 프로젝트의 파일 하나를 읽는다. 토큰은 서버 안에서만 쓰고 응답·로그 어디에도 싣지 않는다. 실패하면 직전 성공본(있으면)을 돌려준다.
+async function projectFile(project, file) {
+  if (!project.repo) return fs.promises.readFile(path.join(DATA_DIR, file));
+  const key = `${project.id}|${project.repo}|${project.branch || "main"}|${project.dir || ""}|${file}`, hit = ghCache.get(key);
+  if (hit && Date.now() - hit.at < GH_TTL_MS) return hit.body;
+  if (ghInflight.has(key)) return ghInflight.get(key);
+  const job = ghFetch(project, file, key, hit).finally(() => ghInflight.delete(key));
+  ghInflight.set(key, job);
+  return job;
+}
+async function ghFetch(project, file, key, hit) {
+  try {
+    const u = `${GITHUB_API}/repos/${project.repo}/contents/${filePathOf(project, file).split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(project.branch || "main")}`;
+    const r = await fetch(u, { headers: { Accept: "application/vnd.github.raw+json", "User-Agent": "work-status-3d", "X-GitHub-Api-Version": "2022-11-28", ...(GITHUB_TOKEN ? { Authorization: `Bearer ${GITHUB_TOKEN}` } : {}) }, signal: AbortSignal.timeout(10_000) });
+    if (!r.ok) throw Object.assign(new Error("upstream"), { upstream: r.status });
+    if (Number(r.headers.get("content-length") || 0) > GH_MAX_BYTES) throw Object.assign(new Error("too large"), { upstream: 413 });
+    const body = Buffer.from(await r.arrayBuffer());
+    if (body.length > GH_MAX_BYTES) throw Object.assign(new Error("too large"), { upstream: 413 });
+    ghCache.set(key, { at: Date.now(), body });
+    return body;
+  } catch (e) {
+    if (hit && Date.now() - hit.at < GH_STALE_MS) return hit.body; // 오래된 성공본은 내보내지 않는다(조용히 멈춘 화면 방지)
+    throw e;
+  }
+}
 const PASSWORD = process.env.DASH_PASSWORD;
 const SESSION_SECRET = crypto.randomBytes(32);
 const SESSION_TTL_MS = 12 * 3600 * 1000;
@@ -137,6 +176,18 @@ const server = http.createServer(async (req, res) => {
         if (!sid) return send(res, 401, { code: "UNAUTHENTICATED" });
         return send(res, 200, { commands: recent(INBOX_FILE, 50) });
       }
+      if (pathname === "/api/projects" && req.method === "GET") {
+        if (!sid) return send(res, 401, { code: "UNAUTHENTICATED" });
+        return send(res, 200, { projects: loadProjects().map((p) => ({ id: p.id, name: p.name, remote: Boolean(p.repo) })) });
+      }
+      const pm = /^\/api\/p\/([a-z][a-z0-9_-]{0,23})\/(status|board)\.json$/.exec(pathname);
+      if (pm && req.method === "GET") {
+        if (!sid) return send(res, 401, { code: "UNAUTHENTICATED" });
+        const project = loadProjects().find((p) => p.id === pm[1]);
+        if (!project) return send(res, 404, { code: "NO_PROJECT" });
+        try { return send(res, 200, await projectFile(project, `${pm[2]}.json`), { "Content-Type": MIME[".json"], "Cache-Control": "no-store" }); }
+        catch (e) { return send(res, 502, { code: "UPSTREAM", status: e.upstream ?? 0 }); } // 원인(토큰·주소)은 응답에 싣지 않는다
+      }
       return send(res, 404, { code: "NOT_FOUND" });
     }
 
@@ -148,7 +199,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === "/favicon.ico") { res.writeHead(204, { ...SECURITY_HEADERS, "Cache-Control": "public, max-age=86400" }); return res.end(); } // 아이콘 없음: 404 대신 빈 응답
     const rel = pathname === "/" ? "/index.html" : pathname;
     const file = safeJoin(DIST, rel);
-    if (!file || /(^|\/)(\.|status\.json$|board\.json$)/.test(rel.replace(/^\//, ""))) return send(res, 404, { code: "NOT_FOUND" });
+    if (!file || /(^|\/)(\.|status\.json$|board\.json$|projects\.json$)/.test(rel.replace(/^\//, ""))) return send(res, 404, { code: "NOT_FOUND" });
     return serveFile(res, file, rel.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache");
   } catch (e) {
     if (e && e.status) return send(res, e.status, { code: e.code });

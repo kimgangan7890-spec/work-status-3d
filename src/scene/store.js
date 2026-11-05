@@ -5,24 +5,27 @@ import { validateStatus, validateBoard, crossCheck } from "../shared/validate.js
  * - 파일이 없거나 깨졌거나 검증에 실패하면 직전 상태를 유지한다.
  * - 첫 로드의 기존 이벤트는 재생하지 않고, 이후 id가 더 큰 이벤트만 알린다.
  */
-export function createStore({ url = "status.json", boardUrl = "board.json", intervalMs = 3000, boardIntervalMs = 30000, fetchFn = (...a) => fetch(...a) } = {}) {
+export function createStore({ url: url0 = "status.json", boardUrl: boardUrl0 = "board.json", intervalMs: intervalMs0 = 3000, boardIntervalMs = 30000, fetchFn = (...a) => fetch(...a) } = {}) {
+  let url = url0, boardUrl = boardUrl0, intervalMs = intervalMs0;
   let state = null;
   let board = null;
   let timerB = null;
   let lastEventId = null;
   let lastError = null;
-  const listeners = { state: [], board: [], events: [], error: [] };
+  const listeners = { state: [], board: [], events: [], error: [], reset: [] };
   const emit = (name, payload) => listeners[name].forEach((fn) => fn(payload));
   let timer = null;
+  let gen = 0; // setSource마다 올라가는 세대 번호
   let local = false; // loadLocal 뒤에는 파일 폴링 결과가 화면을 덮어쓰지 못한다
 
   async function poll() {
     if (local) return;
+    const my = gen;
     try {
-      const res = await fetchFn(`${url}?t=${Date.now()}`, { cache: "no-store" });
+      const res = await fetchFn(`${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const next = await res.json();
-      if (local) return; // 응답을 기다리는 사이 loadLocal이 불렸으면 버린다
+      if (local || my !== gen) return; // 응답을 기다리는 사이 loadLocal·프로젝트 전환이 있었으면 버린다
       const errs = validateStatus(next);
       if (errs.length) throw new Error("검증 실패: " + errs[0]);
       const firstLoad = state === null;
@@ -36,6 +39,7 @@ export function createStore({ url = "status.json", boardUrl = "board.json", inte
       emit("state", { state: next, prev });
       if (fresh.length) emit("events", fresh);
     } catch (err) {
+      if (my !== gen) return;
       lastError = err.message;
       emit("error", err.message); // 직전 상태는 그대로 둔다
     }
@@ -43,16 +47,18 @@ export function createStore({ url = "status.json", boardUrl = "board.json", inte
 
   async function pollBoard() {
     if (local) return;
+    const my = gen;
     try {
-      const res = await fetchFn(`${boardUrl}?t=${Date.now()}`, { cache: "no-store" });
+      const res = await fetchFn(`${boardUrl}${boardUrl.includes("?") ? "&" : "?"}t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const next = await res.json();
-      if (local) return;
+      if (local || my !== gen) return;
       const errs = validateBoard(next);
       if (errs.length) throw new Error("board 검증 실패: " + errs[0]);
       board = next;
       emit("board", { board: next });
     } catch (err) {
+      if (my !== gen) return;
       emit("error", "board.json: " + err.message); // 직전 board 유지
     }
   }
@@ -77,7 +83,22 @@ export function createStore({ url = "status.json", boardUrl = "board.json", inte
     return { ok: true, warnings };
   }
 
+  /**
+   * 다른 프로젝트(사무동)로 바꾼다: 폴링을 멈추고 직전 프로젝트의 상태·보드·이벤트 기준을 모두 비운 뒤 새 주소로 다시 시작한다.
+   * 이전 주소의 늦은 응답이 새 프로젝트를 덮지 못하게 세대 번호로 막는다.
+   */
+  function setSource(src) {
+    clearInterval(timer); clearInterval(timerB);
+    gen++;
+    url = src.url; boardUrl = src.boardUrl; if (src.intervalMs) intervalMs = src.intervalMs;
+    state = null; board = null; lastEventId = null; lastError = null; local = false;
+    emit("reset", { url });
+    timer = setInterval(poll, intervalMs); timerB = setInterval(pollBoard, boardIntervalMs);
+    poll(); pollBoard();
+  }
+
   return {
+    setSource,
     on(name, fn) { listeners[name].push(fn); },
     get state() { return state; },
     get board() { return board; },

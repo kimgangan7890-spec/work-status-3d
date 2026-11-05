@@ -6,9 +6,9 @@ const BAD_NAME = [/^\.env/, /\.(png|jpe?g|gif|webp|mp4|mov|log)$/i, /^inbox.*\.j
 const BAD_DIR = new Set(["node_modules", "dist", "dist-public", "data", "reference_office", ".git", "verify_chief"]);
 const TEXT = /\.(js|mjs|json|jsonl|md|html|css|txt|yml|yaml)$|^\.gitignore$/i;
 const PATH_OK = new Set(["scripts/check-public.js", "scripts/check-source.js", "test/public.test.js"]); // 금지 경로를 일부러 적어 두는 파일
-const FAKE = [/abcdefghijklmnopqrstuvwx/, /pw-for-test-/, /틀린암호/, /someone\/repo/, new RegExp("01234" + "56789")]; // 테스트가 일부러 쓰는 가짜 값
+const FAKE = [/abcdefghijklmnopqrstuvwx/, /pw-for-test-/, /틀린암호/, /someone\/repo/, /tok-SECRET-/, /pw-x-1234/, new RegExp("01234" + "56789")]; // 테스트가 일부러 쓰는 가짜 값
 const EMAIL_OK = /@(example\.(com|org|net)|users\.noreply\.example)$/i;
-const URL_OK = /^https?:\/\/(localhost|127\.0\.0\.1|[\w.-]*example\.(com|org|net)|[\w.-]*\.example|registry\.npmjs\.org|www\.w3\.org|nodejs\.org|\$\{\w+\})([:/]|$)/i;
+const URL_OK = /^https?:\/\/(localhost|127\.0\.0\.1|[\w.-]*example\.(com|org|net)|[\w.-]*\.example|registry\.npmjs\.org|api\.github\.com|raw\.githubusercontent\.com|www\.w3\.org|nodejs\.org|\$\{\w+\})([:/]|$)/i;
 
 const RULES = [
   ["절대 경로", /(\/home\/|\/workspace|\/Users\/|\/root\/|(?<![\w/])[A-Za-z]:\\(?!\/))/, true],

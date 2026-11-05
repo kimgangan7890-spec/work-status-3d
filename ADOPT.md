@@ -142,6 +142,22 @@ JSON은 글자를 큰따옴표 `"`로 감싸고 마지막 항목 뒤에 쉼표�
 
 ---
 
+## 여러 프로젝트(사무동) + GitHub 연결
+프로젝트마다 사무동을 하나씩 두고, 각 프로젝트의 `status.json`·`board.json`을 GitHub 저장소에서 읽어 와요.
+
+1. **쓰는 쪽**: 프로젝트 저장소(상태 전용 저장소를 따로 둬도 돼요)에 두 파일을 올려요. 올리기 전에 `npm run check:data -- <폴더>`로 형식을 확인해요.
+2. **목록 쓰기**: `projects.example.json`을 복사해 `projects.json`으로 바꾸고 내 프로젝트를 적어요(`id`, `name`, `repo`, 선택 `branch`·`dir`·`private`).
+3. **놓는 곳**
+   - 공개 저장소만, 정적 호스팅: `public/projects.json`(공개판은 `public-sample/`, 이 경우 `private`는 쓸 수 없고 `npm run check:public`이 확인해요)에 두고 빌드해요. 브라우저가 GitHub에서 직접 읽어요. 토큰이 필요 없어요.
+   - 비공개 저장소: 서버 모드에서만 돼요. `DATA_DIR/projects.json`(기본 `public/projects.json`)에 `"private": true`로 적고, 서버를 `GITHUB_TOKEN=<읽기 전용 토큰> DASH_PASSWORD=<암호> npm start`로 켜요. 토큰은 코드·저장소·주소에 넣지 않아요.
+4. **화면**: 프로젝트가 2개 이상이면 제목줄 아래에 사무동 카드가 나와요. 카드를 누르면 그 프로젝트의 팀 방 화면으로 바뀌어요. `projects.json`이 없으면 지금까지처럼 한 프로젝트예요.
+
+서버 모드는 공개 저장소도 GitHub API로 중계하므로 토큰이 없으면 시간당 60회 한도에 금방 걸려요. 서버 모드에서는 공개 저장소에도 토큰을 쓰길 권해요(토큰이 없으면 캐시를 2분으로 늘려 한도를 아끼고, 성공본은 10분까지만 대신 보여 줘요). `GITHUB_API_BASE`는 시험용이니 바꾸면 토큰이 그 주소로 가요.
+
+`GITHUB_TOKEN`은 GitHub의 fine-grained 토큰으로 필요한 저장소의 Contents 읽기 권한만 주세요. 공개 저장소의 raw 주소는 몇 분 캐시되니 바로 반영이 필요하면 서버 모드를 쓰세요.
+
+---
+
 ## 팀 방 나누기
 `status.json`에 `teams`를 쓰면 팀마다 방이 자동으로 생겨요. 코드에 팀 이름이 따로 있지 않아요.
 
