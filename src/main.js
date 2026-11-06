@@ -66,7 +66,7 @@ async function boot() {
     // 단지 선택 카드(2개 이상일 때 보임)가 저장된/첫 프로젝트로 store를 시작한다(선택 시 setSource).
     createCampus({
       host: document.getElementById("panels"), projects, base, viaServer: !buildPublic,
-      onSelect: (p, src) => { hud.textContent = `${p.name} 불러오는 중…`; hud.classList.remove("err"); window.__ready = false; store.setSource(src); },
+      onSelect: (p, src) => { window.__projectId = p.id; hud.textContent = `${p.name} 불러오는 중…`; hud.classList.remove("err"); window.__ready = false; store.setSource(src); },
     });
     return;
   }

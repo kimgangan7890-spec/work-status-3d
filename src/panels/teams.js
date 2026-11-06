@@ -4,8 +4,10 @@ import { buildTeamTabs, pickTeam, teamsOf } from "./model.js";
 const KEY = "office.team";
 const FLASH_MS = 1200;
 
-function readSaved() { try { return localStorage.getItem(KEY); } catch { return null; } }
-function writeSaved(v) { try { localStorage.setItem(KEY, v); } catch { /* 저장이 막혀도 계속 */ } }
+// 프로젝트가 여럿이면 프로젝트별로 기억한다(없으면 기존 키).
+const keyNow = () => (globalThis.__projectId ? `${KEY}.${globalThis.__projectId}` : KEY);
+function readSaved() { try { return localStorage.getItem(keyNow()); } catch { return null; } }
+function writeSaved(v) { try { localStorage.setItem(keyNow(), v); } catch { /* 저장이 막혀도 계속 */ } }
 
 export function createTeamTabs(store, host, opts = {}) {
   const view = opts.view ?? null; // 없으면 지금 동작 그대로
@@ -64,6 +66,7 @@ export function createTeamTabs(store, host, opts = {}) {
   }
 
   view?.onChange(() => draw());
+  store.on?.("reset", () => { selected = null; }); // 프로젝트가 바뀌면 그 프로젝트에서 마지막에 본 팀부터
   store.on("state", () => {
     const status = store.state;
     const next = status ? pickTeam(status, selected ?? readSaved()) : null;

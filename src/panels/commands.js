@@ -191,7 +191,7 @@ export function createCommandsPanel(deps = {}) {
     if (mode !== "ready" || loading) return; // 로그인 전에는 요청하지 않는다
     loading = true;
     try {
-      const res = await doFetch("/api/commands", { credentials: "same-origin" });
+      const res = await doFetch("/api/commands" + (globalThis.__projectId ? `?project=${encodeURIComponent(globalThis.__projectId)}` : ""), { credentials: "same-origin" });
       if (res.status === 401) { setMode("login"); return; }
       if (res.status !== 200) return;
       const data = await readJson(res);
@@ -240,7 +240,7 @@ export function createCommandsPanel(deps = {}) {
       const res = await doFetch("/api/command", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, to: target, text: input.value }),
+        body: JSON.stringify({ kind, to: target, text: input.value, ...(globalThis.__projectId ? { project: globalThis.__projectId } : {}) }),
       });
       if (res.status === 201) {
         input.value = ""; updateCounter();

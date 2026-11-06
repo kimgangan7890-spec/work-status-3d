@@ -121,6 +121,19 @@ describe("서버 프로젝트 중계", () => {
     expect((await fetch(s.base + "/api/p/here/board.json", { headers: { Cookie: s.cookie } })).status).toBe(200);
     expect((await fetch(s.base + "/api/p/nope/status.json", { headers: { Cookie: s.cookie } })).status).toBe(404);
   });
+  it("지시는 프로젝트별로 검사·기록되고 목록도 프로젝트별로 거른다", async () => {
+    const s = await startServer({ projects });
+    const send = (body) => fetch(s.base + "/api/command", { method: "POST", headers: { "Content-Type": "application/json", Origin: s.base, Cookie: s.cookie }, body: JSON.stringify(body) });
+    const ok = await send({ kind: "solo", to: "claude", text: "확인 부탁", project: "priv" });
+    expect(ok.status).toBe(201); expect((await ok.json()).command.project).toBe("priv");
+    expect((await send({ kind: "solo", to: "nobody", text: "x", project: "priv" })).status).toBe(400); // 그 프로젝트에 없는 에이전트
+    expect((await send({ kind: "solo", to: "claude", text: "x", project: "nope" })).status).toBe(400);
+    expect((await send({ kind: "solo", to: "claude", text: "x", project: "gone" })).status).toBe(502); // 저장소를 못 읽으면 대상 검사도 못 함
+    const list = (q) => fetch(s.base + "/api/commands" + q, { headers: { Cookie: s.cookie } }).then((r) => r.json());
+    expect((await list("?project=priv")).commands.length).toBe(1);
+    expect((await list("?project=here")).commands.length).toBe(0);
+    expect((await list("")).commands.length).toBe(1);
+  });
   it("projects.json 파일 자체는 정적으로 노출하지 않는다", async () => {
     const s = await startServer({ projects });
     expect((await fetch(s.base + "/projects.json", { headers: { Cookie: s.cookie } })).status).toBe(404);

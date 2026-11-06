@@ -160,7 +160,14 @@ const server = http.createServer(async (req, res) => {
         if (!sid) return send(res, 401, { code: "UNAUTHENTICATED" });
         const body = await readJson(req);
         const kind = body.kind === undefined ? "solo" : body.kind; // 생략하면 개인 지시
-        const targets = currentTargets();
+        let project;
+        if (body.project !== undefined) { // 여러 프로젝트: 지시를 그 프로젝트의 대상으로 검사하고 기록한다
+          project = loadProjects().find((p) => p.id === body.project);
+          if (!project) return send(res, 400, { code: "INVALID_PROJECT" });
+        }
+        let targets;
+        if (project) { try { targets = targetsOf(JSON.parse((await projectFile(project, "status.json")).toString("utf8"))) ?? undefined; } catch { return send(res, 502, { code: "UPSTREAM" }); } }
+        targets ??= currentTargets();
         const bad = checkTarget(kind, body.to, targets);
         if (bad) return send(res, 400, { code: bad });
         const text = typeof body.text === "string" ? body.text.replace(/\s+/g, " ").trim() : "";
@@ -170,11 +177,12 @@ const server = http.createServer(async (req, res) => {
         const times = recentOf(cmdTimes.get(sid) ?? cmdTimes.set(sid, []).get(sid), CMD_WINDOW_MS);
         if (times.length >= CMD_LIMIT) return send(res, 429, { code: "TOO_MANY" });
         times.push(Date.now());
-        return send(res, 201, { command: addCommand(INBOX_FILE, { kind, to: body.to, text, at: nowKst(), targets }) });
+        return send(res, 201, { command: addCommand(INBOX_FILE, { kind, to: body.to, text, at: nowKst(), targets, project: project?.id }) });
       }
       if (pathname === "/api/commands" && req.method === "GET") {
         if (!sid) return send(res, 401, { code: "UNAUTHENTICATED" });
-        return send(res, 200, { commands: recent(INBOX_FILE, 50) });
+        const only = url.searchParams.get("project"); // 지정하면 그 프로젝트의 지시만(없으면 전체)
+        return send(res, 200, { commands: recent(INBOX_FILE, only ? 200 : 50).filter((c) => !only || c.project === only).slice(0, 50) });
       }
       if (pathname === "/api/projects" && req.method === "GET") {
         if (!sid) return send(res, 401, { code: "UNAUTHENTICATED" });

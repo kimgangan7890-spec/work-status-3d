@@ -79,12 +79,12 @@ function writeAll(file, list) {
 
 export function recent(file, n = 50) { return readAll(file).slice(-n).reverse(); }
 
-export function addCommand(file, { kind = "solo", to, text, at, targets = null }) {
+export function addCommand(file, { kind = "solo", to, text, at, targets = null, project }) {
   const bad = checkTarget(kind, to, targets);
   if (bad) throw new Error(`${bad}: kind=${kind}, to=${to}`);
   return withInboxLock(file, () => {
     const all = readAll(file);
-    const cmd = { id: (all.at(-1)?.id ?? 0) + 1, at, kind, to, text, state: "pending", needsApproval: needsApproval(text), deliveredAt: null, doneAt: null };
+    const cmd = { id: (all.at(-1)?.id ?? 0) + 1, at, kind, to, text, state: "pending", needsApproval: needsApproval(text), deliveredAt: null, doneAt: null, ...(project ? { project } : {}) };
     all.push(cmd); writeAll(file, all);
     return cmd;
   });
