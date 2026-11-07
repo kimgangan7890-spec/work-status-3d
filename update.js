@@ -100,6 +100,7 @@ function lastLoggedEventId() {
 
 const stateFromProgress = (p, prev) => (prev === "blocked" ? "blocked" : p >= 100 ? "done" : p > 0 ? "doing" : "todo");
 
+function parseOrder(v) { const n = Number(v); if (!Number.isInteger(n) || n < 1 || n > 999) fail("--order는 1~999 정수"); return n; }
 const commands = {
   init(_pos, flags) {
     withLock(() => {
@@ -185,8 +186,55 @@ const commands = {
       if (!m) { if (!f.title) fail("새 MVP 항목은 --title이 필요하다"); m = { id, title: "", status }; b.mvp.push(m); }
       m.status = status;
       if (f.title) m.title = cleanText("--title", f.title);
+      if (f.order !== undefined) m.order = parseOrder(f.order);
+      if (f.tasks !== undefined) m.taskIds = String(f.tasks).split(",").map((x) => x.trim()).filter(Boolean); // 구현 진행도를 재는 연결 작업
       writeBoard(b);
       console.log(`MVP ${id}: ${status}`);
+    });
+  },
+  order(pos) { // 작업 순서 지정: order <mvp|bp> M2,M1,M3  → 나열한 순서대로 1,2,3. 나열하지 않은 항목은 순서를 지운다(맨 뒤).
+    const [kind, list] = pos;
+    if (!["mvp", "bp"].includes(kind) || !list) fail("사용법: order <mvp|bp> <ID,ID,…>  (앞에 쓴 것이 먼저)");
+    const ids = list.split(",").map((x) => x.trim()).filter(Boolean);
+    if (new Set(ids).size !== ids.length) fail("같은 ID를 두 번 쓸 수 없다");
+    withLock(() => {
+      const b = readBoard();
+      const items = b[kind] ?? [];
+      for (const id of ids) if (!items.some((x) => x.id === id)) fail(`없는 ${kind.toUpperCase()} 항목: ${id}`);
+      for (const x of items) { const i = ids.indexOf(x.id); if (i >= 0) x.order = i + 1; else delete x.order; }
+      writeBoard(b);
+      console.log(`${kind.toUpperCase()} 순서: ${ids.join(" → ")}`);
+    });
+  },
+  prd(pos, f) { // PRD(요구사항 문서) 항목의 확정 단계: draft|review|approved
+    const [id, status] = pos;
+    if (!id || !status) fail("사용법: prd <ID> <draft|review|approved> [--title '제목']");
+    withLock(() => {
+      const b = readBoard();
+      b.prd ??= [];
+      let p = b.prd.find((x) => x.id === id);
+      if (!p) { if (!f.title) fail("새 PRD 항목은 --title이 필요하다"); p = { id, title: "", status }; b.prd.push(p); }
+      p.status = status;
+      if (f.title) p.title = cleanText("--title", f.title);
+      writeBoard(b);
+      console.log(`PRD ${id}: ${status}`);
+    });
+  },
+  bp(pos, f) { // BP(사업계획) 항목: draft|review|approved
+    const [id, status] = pos;
+    if (!id || !status) fail("사용법: bp <ID> <draft|review|approved> [--area market|customer|…] [--title '제목'] [--note '메모'|none]");
+    withLock(() => {
+      const b = readBoard();
+      b.bp ??= [];
+      let x = b.bp.find((y) => y.id === id);
+      if (!x) { if (!f.title || !f.area) fail("새 BP 항목은 --title과 --area가 필요하다"); x = { id, area: f.area, title: "", status }; b.bp.push(x); }
+      x.status = status;
+      if (f.area) x.area = f.area;
+      if (f.title) x.title = cleanText("--title", f.title);
+      if (f.order !== undefined) x.order = parseOrder(f.order);
+      if (f.note !== undefined) { if (f.note === "none") delete x.note; else x.note = cleanText("--note", f.note); }
+      writeBoard(b);
+      console.log(`BP ${id}: ${status}`);
     });
   },
   "command-state"(pos, f) {
@@ -251,7 +299,7 @@ const commands = {
   node update.js event --from gpt --to claude --title '제목' [--summary '한 줄'] [--task T6] [--kind doc|ask|reply|report]
   node update.js progress T6 60
   node update.js state gpt working '메모' [--task T6|none]
-  node update.js command-state 7 delivered|done [--note '메모']\n  node update.js team add review --name '검수팀' [--order 2]   (처음이면 기본 팀 main도 함께 만든다)\n  node update.js team rename review --name '새 이름'\n  node update.js agent add rev1 --name '검수 1' --role '검수' [--team review] [--model '모델']\n  node update.js agent move rev1 --team review\n  node update.js mvp M5 in [--title '제목']\n  node update.js task W5 --title '제목' --owner gpt --zone z-3d [--state doing]`);
+  node update.js command-state 7 delivered|done [--note '메모']\n  node update.js team add review --name '검수팀' [--order 2]   (처음이면 기본 팀 main도 함께 만든다)\n  node update.js team rename review --name '새 이름'\n  node update.js agent add rev1 --name '검수 1' --role '검수' [--team review] [--model '모델']\n  node update.js agent move rev1 --team review\n  node update.js mvp M5 in [--title '제목'] [--tasks T1,T2]\n  node update.js order mvp M2,M1,M3   (또는 bp B1,B2…: 앞에 쓴 것이 먼저. --order N으로 하나씩도 가능)\n  node update.js prd P1 approved [--title '제목']\n  node update.js bp B1 approved [--area revenue] [--title '제목'] [--note '메모']\n  node update.js task W5 --title '제목' --owner gpt --zone z-3d [--state doing]`);
   },
 };
 

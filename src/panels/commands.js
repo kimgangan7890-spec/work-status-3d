@@ -1,7 +1,7 @@
 // 로그인 폼 + 작업 지시. 이 파일만 fetch를 쓴다(같은 출처 상대경로만). DATA.md 9장.
 import {
-  COMMAND_MAX, COMMAND_TO, COMMAND_KIND, TEAM_TO, TEAM_LABEL, NOTICE_DELAY, NOTICE_SECRET, NOTICE_APPROVAL,
-  ERROR_NETWORK, errorMessage, validateCommand, remainingChars, buildCommandRows, hasTeamTabs, teamsOf, TEAM_PREFIX,
+  COMMAND_MAX, COMMAND_KIND, TEAM_TO, TEAM_LABEL, NOTICE_DELAY, NOTICE_SECRET, NOTICE_APPROVAL,
+  ERROR_NETWORK, errorMessage, validateCommand, remainingChars, buildCommandRows, commandTargets,
 } from "./model.js";
 
 const POLL_MS = 5000;
@@ -62,16 +62,8 @@ export function createCommandsPanel(deps = {}) {
   const teamWrap = el("div", "cmd-to"); teamWrap.setAttribute("role", "radiogroup"); teamWrap.setAttribute("aria-label", "받는 팀"); teamWrap.hidden = true;
   let teamTo = TEAM_TO;
   let toBtns = [], teamBtns = [];
-  function targetsFor(status) {
-    if (!status || !hasTeamTabs(status)) return { solo: COMMAND_TO.map((t) => ({ to: t.id, label: t.label })), team: [] };
-    const names = new Map((status.agents ?? []).map((a) => [a.id, a.name]));
-    const ts = teamsOf(status);
-    return {
-      solo: ts.flatMap((t) => t.agentIds.map((id) => ({ to: id, label: names.get(id) || id, title: t.name }))),
-      team: [{ to: TEAM_TO, label: TEAM_LABEL }, ...ts.map((t) => ({ to: TEAM_PREFIX + t.id, label: t.name + " 전체" }))],
-    };
-  }
-  function makeBtns(wrap, list, getCur, setCur) {
+  const targetsFor = commandTargets;
+  function makeBtns(wrap, list, setCur) {
     wrap.replaceChildren();
     return list.map((t) => {
       const b = el("button", "cmd-to-btn", t.label); b.type = "button"; b.dataset.to = t.to;
@@ -82,12 +74,16 @@ export function createCommandsPanel(deps = {}) {
       return b;
     });
   }
+  let targetsSig = null; // status가 3초마다 와도 받는 사람 목록이 같으면 버튼을 다시 만들지 않는다(누르는 도중 사라지지 않게)
   function rebuildTargets() {
     const t = targetsFor(deps.getStatus?.());
+    const sig = JSON.stringify(t);
+    if (sig === targetsSig) return;
+    targetsSig = sig;
     if (!t.solo.some((x) => x.to === to)) to = t.solo[0]?.to ?? "chief";
     if (t.team.length && !t.team.some((x) => x.to === teamTo)) teamTo = TEAM_TO;
-    toBtns = makeBtns(toWrap, t.solo, () => to, (v) => { to = v; });
-    teamBtns = makeBtns(teamWrap, t.team, () => teamTo, (v) => { teamTo = v; });
+    toBtns = makeBtns(toWrap, t.solo, (v) => { to = v; });
+    teamBtns = makeBtns(teamWrap, t.team, (v) => { teamTo = v; });
     syncTo();
   }
   function syncTo() {
@@ -232,7 +228,7 @@ export function createCommandsPanel(deps = {}) {
     e.preventDefault();
     if (sendBtn.disabled) return;
     const target = kind === "team" ? (teamBtns.length ? teamTo : TEAM_TO) : to;
-    const v = validateCommand(target, input.value, kind, deps.getStatus?.());
+    const v = validateCommand(target, input.value, kind, deps.getStatus?.(), globalThis.__projectId);
     if (!v.ok) { msg.textContent = errorMessage(v.code); return; }
     sendBtn.disabled = true;
     msg.textContent = "";

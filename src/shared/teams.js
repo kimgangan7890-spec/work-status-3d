@@ -1,8 +1,8 @@
 // 팀 묶기(DESIGN4.md §3~§5). DOM 없음. status.teams와 agents[].teamId는 모두 선택이다.
-export const DEFAULT_TEAM_ID = "main";
+import { TEAM_ID_RE, DEFAULT_TEAM as DEFAULT_TEAM_ID } from "./validate.js"; // 규칙은 validate.js 한 곳에만 둔다
+export { TEAM_ID_RE, DEFAULT_TEAM_ID };
 export const DEFAULT_TEAM_NAME = "기본";
 export const OTHER_TEAM_NAME = "기타";
-export const TEAM_ID_RE = /^[a-z][a-z0-9_-]{0,23}$/;
 
 /**
  * @returns {{id, name, agentIds: string[], count, working, blocked, dot}[]}
@@ -38,10 +38,6 @@ export function teamsOf(status) {
 /** 탭을 그릴지: 팀이 2개 이상일 때만(팀 1개·teams 없음은 지금 화면 그대로). */
 export function hasTeamTabs(status) {
   return teamsOf(status).length >= 2;
-}
-
-export function teamOfAgent(status, agentId) {
-  return teamsOf(status).find((t) => t.agentIds.includes(agentId))?.id ?? null;
 }
 
 /** 저장된 선택이 지금도 있는 팀이면 그대로, 아니면 첫 팀. */

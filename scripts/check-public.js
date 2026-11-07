@@ -54,6 +54,22 @@ export function checkSample(dir) {
   return problems;
 }
 
+// JS 번들 안의 고정 에이전트 id(chief·claude·gpt). 압축된 코드의 짧은 변수 이름이 우연히 같은 글자가 될 수 있어서,
+// 문자열·속성 이름 자리(앞이 따옴표·백틱·점·#·@·한글 등, 또는 "{"·"," 뒤에 ":"가 오는 객체 키)만 잡는다.
+// 변수 자리(=gpt, (gpt), a-gpt, return gpt 등)와 다른 낱말의 일부(mischief, gptx)는 잡지 않는다.
+const BUNDLE_ID_RE = new RegExp(`(?<![A-Za-z0-9_$])(${AGENT_IDS.join("|")})(?![A-Za-z0-9_$])`, "gi");
+export function bundleIdHits(text) {
+  const hits = [];
+  for (const m of text.matchAll(BUNDLE_ID_RE)) {
+    const prev = text[m.index - 1] ?? "";
+    const prevSolid = /\S?(?=\s*$)/.exec(text.slice(Math.max(0, m.index - 40), m.index))[0], nextSolid = /\S|$/.exec(text.slice(m.index + m[0].length))[0];
+    const inString = /[`'".#@]/.test(prev) || prev > "\u007f";
+    const asKey = /[{,]/.test(prevSolid) && nextSolid === ":"; // 압축 안 된 번들의 줄바꿈·들여쓰기도 건너뛴다
+    if (inString || asKey) hits.push(text.slice(Math.max(0, m.index - 20), m.index + m[0].length + 20));
+  }
+  return hits;
+}
+
 // 빌드 폴더 안의 모든 텍스트 파일을 훑는다.
 function walk(d, out = []) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); e.isDirectory() ? walk(p, out) : out.push(p); } return out; }
 
@@ -76,6 +92,7 @@ export function checkBuild(buildDir, sampleDir) {
     if (/DASH_PASSWORD|inbox\.json|\/workspace\/|\/home\/box/.test(text)) problems.push(`${rel}: 내부 이름·경로가 남아 있음`);
     if (/\.map$/.test(f)) problems.push(`소스맵 포함: ${rel}`);
     if (rel.endsWith(".html")) for (const re of denyList()) if (re.test(text)) problems.push(`${rel}: 공개 금지어(${re})`);
+    if (/\.js$/i.test(f)) for (const h of bundleIdHits(text).slice(0, 5)) problems.push(`${rel}: 고정 에이전트 id가 번들에 남아 있음 → "${h}"`);
   }
   return problems;
 }

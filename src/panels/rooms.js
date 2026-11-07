@@ -36,7 +36,7 @@ export function createRooms(store, view, deps = {}) {
 
   const isFlash = (id, now) => (flashUntil.get(id) ?? 0) > now;
 
-  function makeBody(btn, c, withSummary) {
+  function makeBody(btn, c) {
     const dot = el("i", "rt-dot");
     const name = el("span", "rt-name", c.name);
     const n = el("span", "rt-count", `${c.count}명`);

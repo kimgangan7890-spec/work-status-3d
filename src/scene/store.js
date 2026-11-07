@@ -17,6 +17,7 @@ export function createStore({ url: url0 = "status.json", boardUrl: boardUrl0 = "
   let timer = null;
   let gen = 0; // setSource마다 올라가는 세대 번호
   let local = false; // loadLocal 뒤에는 파일 폴링 결과가 화면을 덮어쓰지 못한다
+  let stateSig = null, boardSig = null; // 직전에 받은 내용(JSON 문자열). 같으면 객체를 바꾸지 않는다
 
   async function poll() {
     if (local) return;
@@ -30,13 +31,15 @@ export function createStore({ url: url0 = "status.json", boardUrl: boardUrl0 = "
       if (errs.length) throw new Error("검증 실패: " + errs[0]);
       const firstLoad = state === null;
       const prev = state;
-      state = next;
+      // 내용이 직전과 같으면 직전 객체를 그대로 쓴다. 받는 쪽(보드·장면)은 같은 객체면 다시 그리지 않는다.
+      const sig = JSON.stringify(next);
+      if (sig !== stateSig) { state = next; stateSig = sig; }
       lastError = null;
       const maxId = next.events.reduce((m, e) => Math.max(m, e.id), 0);
       if (firstLoad) lastEventId = maxId;
       const fresh = firstLoad ? [] : next.events.filter((e) => e.id > lastEventId);
       if (!firstLoad && maxId > lastEventId) lastEventId = maxId;
-      emit("state", { state: next, prev });
+      emit("state", { state, prev });
       if (fresh.length) emit("events", fresh);
     } catch (err) {
       if (my !== gen) return;
@@ -55,8 +58,9 @@ export function createStore({ url: url0 = "status.json", boardUrl: boardUrl0 = "
       if (local || my !== gen) return;
       const errs = validateBoard(next);
       if (errs.length) throw new Error("board 검증 실패: " + errs[0]);
-      board = next;
-      emit("board", { board: next });
+      const sig = JSON.stringify(next);
+      if (sig !== boardSig) { board = next; boardSig = sig; }
+      emit("board", { board });
     } catch (err) {
       if (my !== gen) return;
       emit("error", "board.json: " + err.message); // 직전 board 유지
@@ -76,7 +80,7 @@ export function createStore({ url: url0 = "status.json", boardUrl: boardUrl0 = "
     const warnings = crossCheck(st, bd) ?? [];
     local = true; clearInterval(timer); clearInterval(timerB);
     const prev = state;
-    state = st; board = bd; lastError = null;
+    state = st; board = bd; lastError = null; stateSig = null; boardSig = null;
     lastEventId = st.events.reduce((m, e) => Math.max(m, e.id), 0);
     emit("state", { state: st, prev });
     emit("board", { board: bd });
@@ -91,7 +95,7 @@ export function createStore({ url: url0 = "status.json", boardUrl: boardUrl0 = "
     clearInterval(timer); clearInterval(timerB);
     gen++;
     url = src.url; boardUrl = src.boardUrl; if (src.intervalMs) intervalMs = src.intervalMs;
-    state = null; board = null; lastEventId = null; lastError = null; local = false;
+    state = null; board = null; lastEventId = null; lastError = null; local = false; stateSig = null; boardSig = null;
     emit("reset", { url });
     timer = setInterval(poll, intervalMs); timerB = setInterval(pollBoard, boardIntervalMs);
     poll(); pollBoard();

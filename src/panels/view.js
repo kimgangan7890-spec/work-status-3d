@@ -2,14 +2,15 @@ import { teamsOf } from "./model.js";
 
 // 화면 상태 floor(층 전체) / room(한 팀 방). DESIGN5-panels.md §2. 이 파일이 유일한 소유자다.
 /**
- * deps: {office?, doc?, win?, select?}
+ * deps: {doc?, win?, select?}
  *  - select(teamId): 팀 선택(teams.js의 select). 없으면 window.__teams.select.
- *  - office는 쓰지 않는다(장면 연결은 main.js가 view:change로 한다). 받아만 둔다.
+ *  - 장면 연결은 main.js가 view:change 이벤트로 한다(여기서는 장면을 모른다).
  */
 export function createView(store, deps = {}) {
   const doc = deps.doc ?? globalThis.document;
   const win = deps.win ?? globalThis.window;
   const listeners = [];
+  let campusEnabled = false;
   let mode = "room";
   let teamId = null;
   let started = false; // 첫 상태를 받기 전에는 지금 화면(room)처럼 둔다
@@ -32,6 +33,7 @@ export function createView(store, deps = {}) {
   // 상태가 바뀔 때마다 보정: 팀이 2개 미만이면 층 전체 화면이 없다. 보고 있던 팀이 없어졌으면 안전한 쪽으로.
   function reconcile() {
     const ts = teams();
+    if (mode === "campus" && campusEnabled) return;
     if (!store.state) return;
     if (!started) { ts.length >= 2 ? set("floor") : set("room", ts[0]?.id ?? null); return; }
     if (ts.length < 2) { if (mode !== "room" || teamId !== (ts[0]?.id ?? null)) set("room", ts[0]?.id ?? null); return; }
@@ -45,20 +47,24 @@ export function createView(store, deps = {}) {
     set("room", id);
     return true;
   }
+  function enterCampus() { if (!campusEnabled) return false; set("campus"); return true; }
+  // switching: 다른 사무동으로 들어갈 때. 지금 teams()는 이전 프로젝트 것이므로 새 상태가 오면 첫 화면 규칙(팀 2개 이상이면 층 전체)을 다시 적용한다.
+  function leaveCampus({ switching = false } = {}) { const ts = teams(); set(ts.length >= 2 ? "floor" : "room", ts[0]?.id ?? null); if (switching) started = false; }
+  function configureCampus(count, desktop) { campusEnabled = count >= 2 && desktop; if (!campusEnabled && mode === "campus") leaveCampus(); }
   function back() {
-    if (mode !== "room" || teams().length < 2) return false;
-    set("floor");
-    return true;
+    if (mode === "room" && teams().length >= 2) { set("floor"); return true; }
+    if (mode !== "campus") return enterCampus();
+    return false;
   }
 
   if (doc?.body) doc.body.dataset.view = mode;
   store.on?.("state", reconcile);
   if (store.state) reconcile();
   doc?.addEventListener?.("keydown", (e) => {
-    if (e.key !== "Escape" || mode !== "room") return;
+    if (e.key !== "Escape" || e.defaultPrevented) return;
     const tag = String(e.target?.tagName ?? "").toUpperCase();
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-    back();
+    if (back()) e.preventDefault?.();
   });
 
   // 방 안에서 팀이 바뀌면(탭·저장값 보정 등) 방 상태의 teamId도 따라간다. 층 전체일 때는 무시.
@@ -69,10 +75,10 @@ export function createView(store, deps = {}) {
 
   const api = {
     get: () => ({ mode, teamId: mode === "room" ? teamId : null }),
-    enter, back,
+    enter, back, enterCampus, leaveCampus, configureCampus, canCampus: () => campusEnabled,
     canFloor: () => teams().length >= 2,
     onChange: (fn) => listeners.push(fn),
   };
-  if (win) win.__view = { get: api.get, enter, back };
+  if (win) win.__view = api;
   return api;
 }

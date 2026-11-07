@@ -41,7 +41,7 @@ export function createTeamTabs(store, host, opts = {}) {
     const sig = vmode + JSON.stringify(tabs.map((t) => [t.id, t.name, t.count, t.dot, t.selected, (flashUntil.get(t.id) ?? 0) > now && !t.selected]));
     if (sig === lastSig) return;
     lastSig = sig;
-    nav.hidden = tabs.length === 0 || vmode === "floor"; // 층 전체 화면에서는 이름표가 같은 일을 한다
+    nav.hidden = tabs.length === 0 || vmode === "floor" || view?.get().mode === "campus"; // 층 전체 화면에서는 이름표가 같은 일을 한다
     nav.replaceChildren();
     if (view && tabs.length >= 2 && vmode === "room") {
       const back = document.createElement("button");

@@ -1,4 +1,4 @@
-// 프로젝트 목록(projects.json) 규칙. 프로젝트 하나 = 사무동 하나.
+// 프로젝트 목록(projects.json) 규칙. 프로젝트 하나 = 사무동 하나(DESIGN6.md).
 // 브라우저(단지 화면)와 서버(비공개 저장소 중계)가 같은 코드를 쓴다. 토큰은 여기에 없다 — 서버 환경변수로만 다룬다.
 import { TEAM_ID_RE } from "./validate.js";
 
@@ -60,6 +60,9 @@ export function sourcesOf(project, { base = "./", viaServer = false } = {}) {
 export function summarize(status) {
   const agents = status.agents ?? [];
   return {
+    tasks: status.tasks?.length ?? 0,
+    progress: status.tasks?.length ? Math.round(status.tasks.reduce((n, t) => n + Math.max(0, Math.min(100, Number(t.progress) || 0)), 0) / status.tasks.length) : null,
+    latestAt: (status.events ?? []).reduce((latest, e) => Date.parse(e.at) > Date.parse(latest || "1970-01-01") ? e.at : latest, ""),
     project: status.meta?.project ?? "",
     updatedAt: status.meta?.updatedAt ?? "",
     agents: agents.length,
@@ -67,4 +70,19 @@ export function summarize(status) {
     blocked: agents.filter((a) => a.status === "blocked").length,
     teams: (status.teams ?? []).length || 1,
   };
+}
+
+/**
+ * 화면에서 저장소를 직접 입력해 불러올 때(프로젝트 목록 없이). 입력은 projects.json과 같은 규칙으로 검사한다.
+ * @returns {{ok:true, sources:object, project:object}|{ok:false, errors:string[]}}
+ */
+export function adhocSourcesOf({ repo, branch, dir } = {}, { viaServer = false } = {}) {
+  const clean = (v) => (typeof v === "string" && v.trim() ? v.trim().replace(/^\/+|\/+$/g, "") : undefined);
+  const project = { id: "adhoc", name: "직접 입력", repo: clean(repo), ...(clean(branch) ? { branch: clean(branch) } : {}), ...(clean(dir) ? { dir: clean(dir) } : {}) };
+  if (!project.repo) return { ok: false, errors: ['저장소를 "소유자/저장소" 형식으로 적어 주세요'] };
+  const errors = validateProjects({ projects: [project] });
+  if (errors.length) return { ok: false, errors };
+  if (!viaServer) return { ok: true, project, sources: sourcesOf(project) };
+  const q = new URLSearchParams({ repo: project.repo, ...(project.branch ? { branch: project.branch } : {}), ...(project.dir ? { dir: project.dir } : {}) }).toString();
+  return { ok: true, project, sources: { url: `/api/gh/status.json?${q}`, boardUrl: `/api/gh/board.json?${q}`, intervalMs: 10000, remote: true } };
 }

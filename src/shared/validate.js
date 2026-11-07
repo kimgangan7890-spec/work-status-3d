@@ -12,6 +12,11 @@ const AGENT_STATUS = ["working", "idle", "blocked"];
 const TASK_STATE = ["todo", "doing", "done", "blocked"];
 const EVENT_KIND = ["doc", "ask", "reply", "report"];
 const MVP_STATUS = ["in", "out", "pending"];
+export const BP_AREAS = ["market", "customer", "value", "competition", "revenue", "cost", "channel", "schedule", "funding", "team", "risk", "etc"]; // BP(사업계획) 영역
+export const BP_CORE_AREAS = ["market", "customer", "revenue", "cost", "schedule"]; // 빠짐없이 있어야 할 핵심 영역
+export const MAX_BP = 30;
+export const PRD_STATUS = ["draft", "review", "approved"]; // PRD(요구사항 문서) 항목의 확정 단계
+const isOrder = (v) => Number.isInteger(v) && v >= 1 && v <= 999; // 작업 순서(작은 수가 먼저)
 const KST_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(\+09:00|Z)$/;
 export const MAX_EVENTS = 30;
 const MAX_TEXT = 80;
@@ -122,7 +127,21 @@ export function validateBoard(b) {
     if (mvpIds.has(m.id)) e.push(`mvp[${i}].id 중복`); mvpIds.add(m.id);
     if (!isStr(m.title) || tooLong(m.title)) e.push(`mvp[${i}].title 오류`);
     if (!MVP_STATUS.includes(m.status)) e.push(`mvp[${i}].status 허용값 아님`);
+    if ("order" in m && !isOrder(m.order)) e.push(`mvp[${i}].order는 1~999 정수`);
+    if ("taskIds" in m && (!Array.isArray(m.taskIds) || m.taskIds.some((t) => !isStr(t)))) e.push(`mvp[${i}].taskIds 형식 오류`);
   });
+  if ("prd" in b) {
+    if (!Array.isArray(b.prd)) e.push("prd는 배열이어야 한다");
+    else {
+      const prdIds = new Set();
+      b.prd.forEach((p, i) => {
+        if (!isObj(p) || !isStr(p.id) || !p.id) return e.push(`prd[${i}] 형식 오류`);
+        if (prdIds.has(p.id)) e.push(`prd[${i}].id 중복`); prdIds.add(p.id);
+        if (!isStr(p.title) || tooLong(p.title)) e.push(`prd[${i}].title 오류`);
+        if (!PRD_STATUS.includes(p.status)) e.push(`prd[${i}].status 허용값 아님`);
+      });
+    }
+  }
   b.zones.forEach((z, i) => {
     if (!isObj(z) || !isStr(z.id) || !z.id || !isStr(z.name)) return e.push(`zones[${i}] 형식 오류`);
     if (zoneIds.has(z.id)) e.push(`zones[${i}].id 중복`); zoneIds.add(z.id);
@@ -130,6 +149,22 @@ export function validateBoard(b) {
     if ("teamId" in z && !isTeamId(z.teamId)) e.push(`zones[${i}].teamId 형식 오류`);
     if (!Array.isArray(z.taskIds) || z.taskIds.some((t) => !isStr(t))) e.push(`zones[${i}].taskIds 형식 오류`);
   });
+  if ("bp" in b) { // BP(사업계획): PRD 안에서 보여 주되 PRD와 따로 센다. 상태값은 PRD와 같다.
+    if (!Array.isArray(b.bp)) e.push("bp는 배열이어야 한다");
+    else {
+      if (b.bp.length > MAX_BP) e.push(`bp는 최대 ${MAX_BP}개`);
+      const bpIds = new Set();
+      b.bp.forEach((x, i) => {
+        if (!isObj(x) || !isStr(x.id) || !x.id) return e.push(`bp[${i}] 형식 오류`);
+        if (bpIds.has(x.id)) e.push(`bp[${i}].id 중복`); bpIds.add(x.id);
+        if (!BP_AREAS.includes(x.area)) e.push(`bp[${i}].area 허용값 아님`);
+        if (!isStr(x.title) || tooLong(x.title)) e.push(`bp[${i}].title 오류`);
+        if (!PRD_STATUS.includes(x.status)) e.push(`bp[${i}].status 허용값 아님`);
+        if ("order" in x && !isOrder(x.order)) e.push(`bp[${i}].order는 1~999 정수`);
+        if ("note" in x && (!isStr(x.note) || tooLong(x.note))) e.push(`bp[${i}].note 오류`);
+      });
+    }
+  }
   return e;
 }
 
@@ -144,6 +179,7 @@ export function crossCheck(status, board) {
     if (!zoneIds.has(t.zone)) w.push(`작업 ${t.id}: board.json에 없는 구역 ${t.zone}`);
     else if (zoneOf.get(t.id) !== t.zone) w.push(`작업 ${t.id}: zone(${t.zone})과 board.json 구역 목록(${zoneOf.get(t.id) ?? "없음"})이 다르다`);
   }
+  for (const m of board.mvp) for (const id of m.taskIds ?? []) if (!taskIds.has(id)) w.push(`MVP ${m.id}에 연결된 작업 ${id}가 status.json에 없다`);
   for (const id of zoneOf.keys()) if (!taskIds.has(id)) w.push(`board.json 구역에 있는 ${id}가 status.json 작업에 없다`);
   return w;
 }

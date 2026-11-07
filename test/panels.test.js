@@ -42,7 +42,7 @@ describe("buildBoardView", () => {
     expect(t[2]).toMatchObject({ id: "W9", missing: true, progress: 0 });
   });
   it("status/board가 비어 있어도 죽지 않는다", () => {
-    expect(buildBoardView(null, null)).toEqual({ mvp: [], zones: [] });
+    expect(buildBoardView(null, null)).toEqual({ mvp: [], prd: [], bp: null, zones: [], progress: { prd: null, bp: null, mvp: null, tasks: null } });
   });
 });
 
@@ -219,5 +219,24 @@ describe("buildAgentCards (메인 보드 에이전트 줄)", () => {
   it("비어 있거나 깨진 입력에도 죽지 않는다", () => {
     expect(buildAgentCards(null)).toEqual([]);
     expect(buildAgentCards({ agents: [null, 3], tasks: null })).toEqual([]);
+  });
+});
+
+describe("프로토타입 이름 id/값", () => {
+  const BAD = ["constructor", "__proto__", "toString", "hasOwnProperty", "valueOf"];
+  it("에이전트 id가 위험한 이름이어도 옷색은 문자열(회색)이다", () => {
+    const st = { agents: BAD.map((id) => ({ id, name: id, role: "r", status: id, currentTaskId: null, note: "" })), tasks: [] };
+    for (const c of buildAgentCards(st)) {
+      expect(c.color).toBe(AGENT_COLOR_FALLBACK);
+      expect(typeof c.statusLabel).toBe("string");
+      expect(c.statusLabel).not.toMatch(/function|\[object/);
+    }
+  });
+  it("보드 상태·영역 값이 위험한 이름이어도 라벨은 문자열이다", () => {
+    const v = buildBoardView({ agents: [], tasks: [] }, { mvp: [{ id: "m", title: "t", status: "constructor", taskIds: [] }], prd: [{ id: "p", title: "t", status: "toString" }], bp: [{ id: "b", area: "__proto__", title: "t", status: "valueOf" }] });
+    expect(v.mvp[0].label).toBe("constructor");
+    expect(v.prd[0].label).toBe("toString");
+    expect(v.bp[0].areaLabel).toBe("__proto__");
+    expect(v.bp[0].label).toBe("valueOf");
   });
 });

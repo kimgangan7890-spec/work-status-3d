@@ -69,12 +69,23 @@
 ## 3. board.json 스키마
 | 필드 | 형식 | 설명 |
 |---|---|---|
-| mvp[] | `{ id, title, status }` | MVP 요약. status는 `in`\|`out`\|`pending` |
+| prd[] | `{ id, title, status }` (선택) | PRD(요구사항 문서) 항목. status는 `draft`\|`review`\|`approved`(작성 중·검토 중·확정) |
+| bp[] | `{ id, area, title, status, note? }` (선택) | BP(사업계획) 항목. `area`는 `market\|customer\|value\|competition\|revenue\|cost\|channel\|schedule\|funding\|team\|risk\|etc`, status는 PRD와 같다. 최대 30개 |
+| mvp[] | `{ id, title, status, taskIds? }` | MVP(이번 출시 범위). status는 `in`\|`out`\|`pending`. `taskIds`(선택)는 이 항목을 구현하는 작업 id들 |
 | zones[] | `{ id, name, ownerAgentId, taskIds[] }` | 구역별 담당표 |
+
+### PRD·BP·MVP의 역할, 진행도
+- **PRD**는 무엇을·왜 만들지 정한 요구사항이다. 항목마다 확정 단계(작성 중→검토 중→확정)가 있고, **PRD 확정**은 확정된 항목의 비율이다.
+- **BP**는 PRD 안에서 보여 주는 사업계획이다(누구에게 팔고 어떻게 벌고 버틸지). 항목마다 영역(`area`)과 확정 단계가 있고, **BP 확정**은 확정 항목 비율이다. PRD 확정 수치에 더하지 않고 하위 줄로 따로 낸다. 시장·고객·수익·비용·일정은 핵심 영역이라, 확정 항목이 없으면 "빠진 핵심 영역"으로 글로 알린다. 금액·매출 같은 실제 수치는 공개 저장소에 올리지 않는다(검사 도구가 막아 주지 않는다).
+- **MVP**는 그 요구사항 중 이번 첫 출시에 넣을 범위(포함/제외/보류)다. **MVP 구현**은 "포함" 항목에 연결된 작업(`taskIds`)의 진행률 평균이다. 연결된 작업이 없는 항목은 계산에서 빠진다.
+- **전체 작업**은 `status.json`의 모든 작업 진행률 평균이다.
+- 세 수치는 서로 다른 것을 재므로 합치지 않고 화면에서 따로 보여 준다. `prd`·`bp`·`taskIds`가 없는 옛 파일도 그대로 동작한다(해당 진행도는 "—").
+- **작업 순서**: `mvp[]`·`bp[]` 항목에 선택 `order`(1~999, 작은 수가 먼저)를 둔다. 없는 항목은 원래 순서대로 뒤에 온다. 화면은 순서대로 정렬해 "1. 제목"으로 보여 주고, 순서가 있는 미완료 항목 중 가장 앞을 "다음"으로 표시한다. `node update.js order mvp M2,M1,M3`(bp도 같음)이나 `--order N`으로 지정한다.
+- `node update.js prd P1 approved --title '제목'`, `node update.js bp B1 approved --area market --title '제목'`, `node update.js mvp M1 in --tasks T1,T2`로 바꾼다.
 
 ### board.json 검증 규칙
 1. 최상위 키 `mvp, zones`는 필수 배열이다.
-2. `mvp[].id`, `zones[].id`는 각각 중복이 없고, `status`는 허용값만 쓴다.
+2. `mvp[].id`, `prd[].id`, `zones[].id`는 각각 중복이 없고, `status`는 허용값만 쓴다. `prd`는 선택 배열, `mvp[].taskIds`는 선택 문자열 배열이다.
 3. `zones[].ownerAgentId`는 `chief|claude|gpt` 중 하나다.
 4. 교차 확인(경고만, 거부 아님): `taskIds`와 `tasks[].zone`이 서로 맞는지 `update.js`가 확인해 경고한다.
 5. 검증 실패 시 파일을 바꾸지 않는다.
@@ -139,6 +150,8 @@
 - 패널은 `fetch`하지 않는다. 파일 읽기는 scene 쪽 로더가 하고, 결과를 패널에 props 또는 콜백으로 넘긴다.
 
 ## 7. 화면 쪽 규칙
+
+프로젝트 2개 이상·캔버스 폭 600px 이상이면 3D 단지를 먼저 표시한다. status의 작업 진행도 평균·팀 수·막힘 수·최신 이벤트 시각을 요약할 뿐 JSON 계약은 바꾸지 않는다. 폰은 기존 카드로 전환한다.
 - 3초마다 `status.json`을, 30초마다 `board.json`을 다시 읽는다.
 - 파일이 없거나 깨졌거나 검증에 실패하면 직전 상태를 유지한다.
 - 이전에 본 마지막 id보다 큰 이벤트만 서류 애니메이션으로 재생한다. 첫 로드의 기존 이벤트는 재생하지 않는다.

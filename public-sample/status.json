@@ -23,7 +23,7 @@
   ],
   "agents": [
     {
-      "id": "chief",
+      "id": "lead",
       "name": "팀장",
       "role": "조율·검수",
       "status": "working",
@@ -33,7 +33,7 @@
       "teamId": "ops"
     },
     {
-      "id": "claude",
+      "id": "designer",
       "name": "디자이너",
       "role": "화면·문서",
       "status": "working",
@@ -43,7 +43,7 @@
       "teamId": "design"
     },
     {
-      "id": "gpt",
+      "id": "developer",
       "name": "개발자",
       "role": "구현·테스트",
       "status": "idle",
@@ -77,7 +77,7 @@
     {
       "id": "S1",
       "title": "화면 초안",
-      "ownerAgentId": "claude",
+      "ownerAgentId": "designer",
       "zone": "z-a",
       "progress": 40,
       "state": "doing",
@@ -86,7 +86,7 @@
     {
       "id": "S2",
       "title": "문서 정리",
-      "ownerAgentId": "claude",
+      "ownerAgentId": "designer",
       "zone": "z-a",
       "progress": 100,
       "state": "done",
@@ -95,7 +95,7 @@
     {
       "id": "S3",
       "title": "범위 점검",
-      "ownerAgentId": "chief",
+      "ownerAgentId": "lead",
       "zone": "z-c",
       "progress": 20,
       "state": "doing",
@@ -104,7 +104,7 @@
     {
       "id": "S4",
       "title": "데이터 저장 만들기",
-      "ownerAgentId": "gpt",
+      "ownerAgentId": "developer",
       "zone": "z-b",
       "progress": 0,
       "state": "todo",
@@ -113,7 +113,7 @@
     {
       "id": "S5",
       "title": "테스트 작성",
-      "ownerAgentId": "gpt",
+      "ownerAgentId": "developer",
       "zone": "z-b",
       "progress": 60,
       "state": "doing",
@@ -122,7 +122,7 @@
     {
       "id": "S6",
       "title": "배포 준비",
-      "ownerAgentId": "chief",
+      "ownerAgentId": "lead",
       "zone": "z-c",
       "progress": 0,
       "state": "todo",

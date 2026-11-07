@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { teamsOf, hasTeamTabs, pickTeam, teamOfAgent } from "../src/shared/teams.js";
+import { teamsOf, hasTeamTabs, pickTeam } from "../src/shared/teams.js";
 import { agentColors, FIXED_COLOR, COLOR_FALLBACK } from "../src/shared/colors.js";
-import { buildTeamTabs, buildAgentGroups, buildAgentCards, buildCommandTargets, buildCommandRows, targetLabel, validateCommand, teamLabelForRoute, AGENT_COLOR_FALLBACK } from "../src/panels/model.js";
+import { buildTeamTabs, buildAgentGroups, buildAgentCards, commandTargets, buildCommandRows, targetLabel, validateCommand, teamLabelForRoute, AGENT_COLOR_FALLBACK } from "../src/panels/model.js";
 
 const A = (id, status, teamId, name = id) => ({ id, name, status, currentTaskId: null, teamId });
 const plain = { agents: [A("chief", "working"), A("claude", "idle"), A("gpt", "working")], tasks: [], events: [] };
@@ -35,7 +35,7 @@ describe("teamsOf", () => {
     expect(teamsOf(s).map((t) => t.id)).toEqual(["a", "b", "c"]);
     expect(teamsOf(s).find((t) => t.id === "c")).toMatchObject({ count: 0, working: 0, blocked: 0, dot: "idle", agentIds: [] });
     expect(buildTeamTabs(s).map((t) => t.id)).toEqual(["a", "b", "c"]);
-    expect(buildCommandTargets(s).map((g) => g.label)).toEqual(["전체", "A", "B", "C"]);
+    expect(commandTargets(s).team.map((o) => o.to)).toEqual(["team", "team:a", "team:b", "team:c"]);
     // 사람이 있는 팀 1개 + 빈 팀 1개는 방이 2개라 층 전체 화면이 생긴다. 빈 main만 있으면 그대로 한 팀.
     expect(hasTeamTabs({ teams: [{ id: "a", name: "A" }, { id: "b", name: "B" }], agents: [A("x", "idle", "a")] })).toBe(true);
     expect(hasTeamTabs({ teams: [{ id: "main", name: "기본" }, { id: "a", name: "A" }], agents: [A("x", "idle", "a")] })).toBe(false);
@@ -45,7 +45,6 @@ describe("teamsOf", () => {
     expect(pickTeam(teamed, "review")).toBe("review");
     expect(pickTeam(teamed, "gone")).toBe("code");
     expect(pickTeam(teamed, null)).toBe("code");
-    expect(teamOfAgent(teamed, "rev2")).toBe("review");
   });
   it("깨진 입력에도 던지지 않는다", () => {
     expect(() => teamsOf(null)).not.toThrow();
@@ -96,15 +95,15 @@ describe("탭·묶음", () => {
 });
 
 describe("지시 대상", () => {
-  it("팀 없으면 지금과 같은 목록(전체 + 3명)", () => {
-    const t = buildCommandTargets(plain);
-    expect(t).toHaveLength(1);
-    expect(t[0].options.map((o) => o.to)).toEqual(["team", "chief", "claude", "gpt"]);
+  it("팀 없으면 지금과 같은 목록(개인 3명, 공동은 모두에게만)", () => {
+    const t = commandTargets(plain);
+    expect(t.solo.map((o) => o.to)).toEqual(["chief", "claude", "gpt"]);
+    expect(t.team).toEqual([]);
   });
-  it("팀 있으면 팀별 묶음과 team:<id>", () => {
-    const t = buildCommandTargets(teamed);
-    expect(t.map((g) => g.label)).toEqual(["전체", "코딩팀", "검수팀"]);
-    expect(t[2].options.map((o) => [o.kind, o.to])).toEqual([["team", "team:review"], ["solo", "rev1"], ["solo", "rev2"]]);
+  it("팀 있으면 팀 순서대로 개인, 공동은 모두에게 + team:<id>", () => {
+    const t = commandTargets(teamed);
+    expect(t.solo.map((o) => [o.to, o.title])).toEqual([["chief", "코딩팀"], ["claude", "코딩팀"], ["gpt", "코딩팀"], ["rev1", "검수팀"], ["rev2", "검수팀"]]);
+    expect(t.team.map((o) => [o.to, o.label])).toEqual([["team", "모두에게"], ["team:code", "코딩팀 전체"], ["team:review", "검수팀 전체"]]);
   });
   it("검사: team:<없는 팀>·없는 에이전트는 거절, 있는 것은 통과", () => {
     expect(validateCommand("team:review", "안녕", "team", teamed).ok).toBe(true);
@@ -127,5 +126,25 @@ describe("지시 목록 대상 표시", () => {
   it("team:<id>는 팀 이름, 에이전트 id는 이름으로 보인다", () => {
     const rows = buildCommandRows([{ id: 3, kind: "team", to: "team:b", text: "t" }, { id: 2, kind: "team", to: "team", text: "t" }, { id: 1, kind: "solo", to: "y", text: "t" }], 50, status);
     expect(rows.map((r) => r.target)).toEqual(["공동 · 검수팀 전체", "공동 · 모두에게", "개인 · 검수 매니저"]);
+  });
+});
+
+describe("직접 불러온 저장소(@gh)의 지시", () => {
+  it("검사에서 전용 코드로 거절하고 문구가 일반 오류와 다르다", async () => {
+    const { ADHOC_PROJECT_ID, errorMessage, ERROR_FALLBACK } = await import("../src/panels/model.js");
+    expect(ADHOC_PROJECT_ID).toBe("@gh");
+    expect(validateCommand("claude", "안녕", "solo", null, "@gh")).toEqual({ ok: false, code: "ADHOC_PROJECT" });
+    expect(validateCommand("team", "안녕", "team", null, "@gh").code).toBe("ADHOC_PROJECT");
+    expect(validateCommand("claude", "안녕", "solo", null, "main").ok).toBe(true);
+    expect(errorMessage("ADHOC_PROJECT")).toContain("직접 불러온 저장소에는 지시를 보낼 수 없습니다");
+    expect(errorMessage("ADHOC_PROJECT")).not.toBe(ERROR_FALLBACK);
+  });
+  it("서버의 INVALID_PROJECT(projects.json에서 지워진 프로젝트)는 직접 불러온 저장소와 다른 문구다", async () => {
+    const { errorMessage, ERROR_FALLBACK, PROJECT_GONE, ADHOC_NO_COMMAND } = await import("../src/panels/model.js");
+    const m = errorMessage("INVALID_PROJECT");
+    expect(m).toBe(PROJECT_GONE);
+    expect(m).toContain("프로젝트 목록(projects.json)에 없습니다");
+    expect(m).not.toContain("직접 불러온 저장소");
+    expect(m).not.toBe(ADHOC_NO_COMMAND); expect(m).not.toBe(ERROR_FALLBACK);
   });
 });

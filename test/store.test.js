@@ -38,6 +38,14 @@ describe("store", () => {
     expect(t.errors.length).toBe(2); expect(t.store.board).toBe(before);
   });
 
+  it("내용이 같으면 같은 객체를 유지하고(state 알림은 매번), 바뀌면 새 객체로 바꾼다", async () => {
+    const t = make(); const seen = []; t.store.on("state", (x) => seen.push(x.state));
+    t.set(reply(seedStatus())); await t.store.poll(); await t.store.poll();
+    expect(seen.length).toBe(2); expect(seen[1]).toBe(seen[0]);
+    const s = seedStatus(); s.agents[0].status = "blocked"; t.set(reply(s)); await t.store.poll();
+    expect(seen[2]).not.toBe(seen[0]); expect(t.store.state.agents[0].status).toBe("blocked");
+    t.set(reply(seedBoard())); await t.store.pollBoard(); const b0 = t.store.board; await t.store.pollBoard(); expect(t.store.board).toBe(b0);
+  });
   describe("loadLocal", () => {
     it("검증을 통과한 두 객체를 반영하고 폴링을 멈춘다. 이벤트는 재생하지 않는다", async () => {
       const t = make(); t.set(reply(seedStatus())); await t.store.poll();
@@ -60,7 +68,7 @@ describe("store", () => {
       expect(r.ok).toBe(false); expect(r.errors[0]).toMatch(/^board\.json:/);
       r = t.store.loadLocal(null, undefined); expect(r.ok).toBe(false);
       expect(t.store.state).toBe(before); expect(t.store.isLocal).toBe(false);
-      t.set(reply(seedStatus())); await t.store.poll(); expect(t.store.state).not.toBe(before); // 폴링은 계속 동작
+      const next = seedStatus(); next.meta.project = "다음"; t.set(reply(next)); await t.store.poll(); expect(t.store.state.meta.project).toBe("다음"); // 폴링은 계속 동작
     });
     it("응답을 기다리는 중에 loadLocal이 불리면 그 응답은 버린다", async () => {
       let release; const gate = new Promise((r) => (release = r));

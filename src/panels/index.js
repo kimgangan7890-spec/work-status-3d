@@ -1,9 +1,10 @@
 import "./panels.css";
-import { buildBoardView, buildEventRows, buildAgentGroups, teamLabelForRoute, buildRoomCards } from "./model.js";
+import { buildAgentDetail, buildBoardView, buildEventRows, buildAgentGroups, teamLabelForRoute, buildRoomCards } from "./model.js";
 import { createView } from "./view.js";
 import { createRooms } from "./rooms.js";
 import { createTeamTabs } from "./teams.js";
 import { createLoadLocal } from "./loadlocal.js";
+import { createDayMode } from "./daymode.js";
 
 // 모든 사용자 데이터는 textContent로만 넣는다(innerHTML 금지).
 function el(tag, cls, text) {
@@ -36,8 +37,15 @@ const EV_FRESH_MS = 2400; // panels.css의 .ev.fresh 애니메이션 길이와 �
 const flashUntil = new Map(); // taskId -> 만료 시각(ms)
 const lastPct = new Map(); // taskId -> 직전 진행률(막대가 부드럽게 차오르게)
 
+// 에이전트 카드를 누르면 그 에이전트의 작업 화면(지금 하는 일·맡은 작업·최근 문서)이 아래에 열린다. 상태는 모듈 변수에 두어 3초 다시 그리기에도 유지한다.
+let openAgentId = null;
+let onAgentOpen = null; // mountPanels가 넣는 다시 그리기
 function agentCard(c, onCommand) {
-  const card = el("div", "ag " + String(c.status).replace(/[^a-z]/g, ""));
+  const card = el("div", "ag " + String(c.status).replace(/[^a-z]/g, "") + (openAgentId === c.id ? " open" : ""));
+  card.setAttribute("role", "button"); card.tabIndex = 0; card.setAttribute("aria-pressed", String(openAgentId === c.id));
+  const toggleOpen = () => { openAgentId = openAgentId === c.id ? null : c.id; onAgentOpen?.(); };
+  card.addEventListener("click", (e) => { if (e.target.closest(".ag-cmd")) return; toggleOpen(); });
+  card.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === card) { e.preventDefault(); toggleOpen(); } });
   card.style.borderLeftColor = c.color;
   card.append(el("div", "ag-name", c.name), el("div", "ag-status", c.statusLabel), el("div", "ag-task", c.task || "—"));
   if (onCommand) {
@@ -91,14 +99,101 @@ function renderAgents(box, groups, ctx = {}) {
   }
 }
 
+// BP(사업계획) 상자: PRD 안의 하위 상자. 보드는 3초마다 새로 그려지므로 접힘 상태는 모듈 변수에 둔다(null이면 기본: 폰은 접힘, 데스크톱은 펼침).
+let bpOpen = null;
+let redrawBoard = null; // mountPanels가 drawBoard를 넣는다
+function renderBp(view) {
+  const phone = typeof matchMedia === "function" && matchMedia("(max-width: 600px)").matches;
+  const open = bpOpen ?? !phone;
+  const box = el("div", "bp");
+  const pg = view.progress.bp;
+  const head = el("button", "bp-head");
+  head.type = "button"; head.setAttribute("aria-expanded", String(open));
+  const miss = pg ? (pg.missingAreas.length ? ` · 빠진 핵심 영역 ${pg.missingAreas.length}` : " · 핵심 영역 모두 확정") : "";
+  head.append(el("span", "bp-title", `${open ? "▾" : "▸"} BP · 사업계획`), el("small", "", pg ? `${pg.done}/${pg.total} 확정${miss}` : "정보 없음"));
+  head.addEventListener("click", () => { bpOpen = !open; redrawBoard?.(); });
+  box.append(head);
+  if (open) {
+    box.append(el("div", "role-note", "누구에게 팔고 어떻게 벌고 버틸지, 사업 근거를 확정한다. PRD의 '왜'를 사업 쪽에서 받친다."));
+    if (!view.bp.length) box.append(el("div", "empty", "BP 정보 없음"));
+    for (const x of view.bp) {
+      const row = el("div", "bp-row");
+      row.append(el("span", "bp-area", x.areaLabel), el("span", "bp-text", (x.order !== null ? `${x.order}. ` : "") + x.title + (x.next ? "  ▶ 다음" : "")), el("span", "chip prd-" + String(x.status).replace(/[^a-z]/g, ""), x.label));
+      if (x.note) row.append(el("small", "bp-note", x.note));
+      box.append(row);
+    }
+    if (pg && pg.missingAreas.length) box.append(el("div", "bp-miss", "확정 항목이 없는 핵심 영역: " + pg.missingAreas.join(" · ")));
+  }
+  return box;
+}
+
+function renderAgentDetail(box, d) {
+  box.replaceChildren();
+  if (!d) return;
+  const root = el("div", "agd " + String(d.status).replace(/[^a-z]/g, ""));
+  root.style.borderLeftColor = d.color;
+  const head = el("div", "agd-head");
+  const close = el("button", "agd-close", "닫기"); close.type = "button";
+  close.addEventListener("click", () => { openAgentId = null; onAgentOpen?.(); });
+  head.append(el("span", "agd-name", `${d.name} 작업 화면`), el("small", "", d.statusLabel), close);
+  root.append(head);
+  if (d.note) root.append(el("div", "agd-note", d.note));
+  const cur = el("div", "agd-cur");
+  if (d.current) {
+    cur.append(el("div", "agd-cur-title", `지금: ${d.current.title}`), el("small", "", `${d.current.stateLabel} · ${d.current.progress}%`));
+    const bar = el("div", "bar"); const fill = el("i"); fill.style.width = `${d.current.progress}%`; bar.append(fill); cur.append(bar);
+  } else cur.append(el("div", "agd-cur-title", "지금 맡은 작업 없음"));
+  root.append(cur);
+  if (d.tasks.length) {
+    root.append(el("h4", "", "맡은 작업"));
+    for (const t of d.tasks) {
+      const r = el("div", "agd-task " + String(t.state).replace(/[^a-z]/g, ""));
+      r.append(el("span", "agd-tid", t.id), el("span", "agd-ttl", t.title), el("span", "agd-tpct", `${t.progress}%`));
+      const bar = el("div", "bar"); const fill = el("i"); fill.style.width = `${t.progress}%`; bar.append(fill); r.append(bar);
+      root.append(r);
+    }
+  }
+  if (d.events.length) {
+    root.append(el("h4", "", "최근 오간 문서"));
+    for (const ev of d.events) root.append(el("div", "agd-ev", `${ev.time} ${ev.route} · ${ev.title}`));
+  }
+  box.append(root);
+}
+
 function renderBoard(body, view, now = Date.now()) {
   body.replaceChildren();
-  body.append(el("h3", "", "MVP"));
+  // 진행도 3종: 서로 다른 것을 재므로 이름·기준을 붙여 따로 보여 준다.
+  const pg = view.progress;
+  const prog = el("div", "pg3");
+  const row = (name, what, p, text, extra = "") => {
+    const r = el("div", "pg-row" + (p ? "" : " na") + (extra ? " " + extra : ""));
+    r.append(el("span", "pg-name", name), el("span", "pg-pct", p ? text : "—"), el("small", "pg-what", what));
+    const bar = el("div", "bar"); const fill = el("i"); fill.style.width = `${p ? p.pct : 0}%`; bar.append(fill); r.append(bar);
+    return r;
+  };
+  prog.append(
+    row("PRD 확정", "무엇을·왜 만들지 요구사항을 확정한 비율", pg.prd, pg.prd ? `${pg.prd.done}/${pg.prd.total} · ${pg.prd.pct}%` : ""),
+    ...(pg.bp ? [row("└ BP 확정", "사업 근거(시장·고객·수익·비용·일정 등)를 확정한 비율 — PRD 확정과 별도", pg.bp, `${pg.bp.done}/${pg.bp.total} · ${pg.bp.pct}%`, "sub")] : []),
+    row("MVP 구현", "이번 출시에 포함한 범위의 구현 진행(연결된 작업 평균)", pg.mvp, pg.mvp ? `${pg.mvp.pct}%` : ""),
+    row("전체 작업", "모든 작업의 진행률 평균", pg.tasks, pg.tasks ? `${pg.tasks.pct}%` : ""),
+  );
+  body.append(prog);
+  body.append(el("h3", "", "PRD · 요구사항"), el("div", "role-note", "무엇을·왜 만들지 정한 문서의 항목. 확정되면 범위(MVP)를 정하는 근거가 된다."));
+  if (!view.prd.length) body.append(el("div", "empty", "PRD 정보 없음"));
+  const prdList = el("ul", "pn-mvp");
+  for (const p of view.prd) {
+    const li = el("li", "chip prd-" + String(p.status).replace(/[^a-z]/g, ""));
+    li.append(document.createTextNode(p.title), el("small", "", p.label));
+    prdList.append(li);
+  }
+  body.append(prdList);
+  if (view.bp) body.append(renderBp(view));
+  body.append(el("h3", "", "MVP · 출시 범위"), el("div", "role-note", "이번 첫 출시에 넣을 것과 뺄 것. 진행도는 연결된 작업으로 잰다."));
   if (!view.mvp.length) body.append(el("div", "empty", "MVP 정보 없음"));
   const chips = el("ul", "pn-mvp");
   for (const m of view.mvp) {
     const li = el("li", "chip " + String(m.status).replace(/[^a-z]/g, ""));
-    li.append(document.createTextNode(m.title), el("small", "", m.label));
+    li.append(document.createTextNode((m.order !== null ? `${m.order}. ` : "") + m.title), ...(m.next ? [el("small", "next", "다음")] : []), el("small", "", m.progress === null || m.status !== "in" ? m.label : `${m.label} · ${m.progress}%`));
     chips.append(li);
   }
   body.append(chips, el("h3", "", "구역별 담당"));
@@ -148,16 +243,17 @@ export function mountPanels(store, rootElement, options = {}) {
   const log = makePanel("pn-log", "이벤트 로그");
   // renderBoard가 비우는 영역과 '내 지시' 자리를 나눈다.
   const agentsBox = el("div", "ag-box");
-  const boardMain = el("div");
+  const boardMain = el("div", "board-main");
   const cmdSlot = el("div", "cmd-slot");
-  board.body.append(agentsBox, createLoadLocal(store).root, cmdSlot, boardMain);
+  const agentDetailBox = el("div", "agd-box");
+  board.body.append(agentsBox, agentDetailBox, createLoadLocal(store, { publicMode: options.publicMode }).root, createDayMode().root, cmdSlot, boardMain);
   host.append(board.root, log.root);
   const view = createView(store, { select: (id) => teamTabs.select(id) });
   const teamTabs = createTeamTabs(store, document.body, { view });
   teamTabs.onChange(() => { groupOpen.clear(); drawBoard(); });
   view.onChange(() => { groupOpen.clear(); drawBoard(); if (view.get().mode === "floor") commandsApi?.preset({ kind: "team", to: "team" }, { open: false }); });
   // 팀 중심 화면 단축: 지시 UI가 보일 때(로그인 후)만 버튼을 그린다.
-  let commandsApi = null, canCommand = false;
+  let commandsApi = null, canCommand = false, ghMounted = false;
   createRooms(store, view, { office: options.office, cardsHost: board.body });
 
   // 모바일(600px 이하) 탭 바 + 시트. 데스크톱에서는 CSS로 숨긴다.
@@ -210,6 +306,15 @@ export function mountPanels(store, rootElement, options = {}) {
         const ready = commands.mode === "ready";
         if (ready !== canCommand) { canCommand = ready; drawBoard(); }
         document.body.classList.toggle("has-cmd", shown);
+        if (commands.mode === "ready" && !ghMounted) { // 로그인된 서버 모드에서만 GitHub 연결 패널을 붙인다(공개판은 이 블록째 빠진다)
+          ghMounted = true;
+          import("./ghconnect.js").then(({ mountGhConnect }) => {
+            const wrap = el("details", "ghc-wrap");
+            wrap.append(el("summary", "ghc-sum", "GitHub 활동 연결"));
+            cmdSlot.after(wrap);
+            mountGhConnect(wrap, { onChange: () => window.dispatchEvent(new Event("gh:changed")) });
+          }).catch(() => { /* 연결 패널 없이 계속 */ });
+        }
         if (!shown && active === "cmd") setActive(null);
       });
       commands.start();
@@ -220,7 +325,14 @@ export function mountPanels(store, rootElement, options = {}) {
   let logSig = null;
   let seen = null; // 이미 그린 이벤트 id (첫 렌더는 강조하지 않는다)
 
-  const drawBoard = () => {
+  // 보드는 status가 3초마다 와도 그리는 데 쓰는 값이 그대로면 다시 만들지 않는다(누르던 버튼이 사라지지 않고 DOM을 덜 만든다).
+  // 상태·보드는 내용이 같으면 store가 같은 객체를 준다. 펼침·접기·팀·화면 전환은 force로 늘 다시 그린다.
+  let drawnKey = null;
+  const isPhone = () => typeof matchMedia === "function" && matchMedia("(max-width: 600px)").matches; // BP 기본 펼침이 폭에 따라 다르다
+  const drawBoard = (force = true) => {
+    const key = [store.state, store.board, teamTabs.selected(), view.get().mode, canCommand, isPhone()];
+    if (!force && drawnKey && key.every((v, i) => v === drawnKey[i])) return;
+    drawnKey = key;
     if (store.state) {
       const sel = teamTabs.selected();
       const rooms = buildRoomCards(store.state);
@@ -230,7 +342,9 @@ export function mountPanels(store, rootElement, options = {}) {
         soloCmd: (id) => commandsApi?.preset({ kind: "solo", to: id }),
         teamCmd: (id) => commandsApi?.preset({ kind: "team", to: "team:" + id }),
       });
-    } else agentsBox.replaceChildren();
+      if (openAgentId && !buildAgentDetail(store.state, openAgentId)) openAgentId = null; // 사라진 에이전트
+      renderAgentDetail(agentDetailBox, openAgentId ? buildAgentDetail(store.state, openAgentId) : null);
+    } else { agentsBox.replaceChildren(); agentDetailBox.replaceChildren(); }
     if (store.state && store.board) renderBoard(boardMain, buildBoardView(store.state, store.board));
     else boardMain.replaceChildren(el("div", "empty", "불러오는 중…"));
   };
@@ -269,8 +383,9 @@ export function mountPanels(store, rootElement, options = {}) {
     if (fresh.size) setTimeout(drawLog, EV_FRESH_MS + 50);
   };
 
+  redrawBoard = drawBoard; onAgentOpen = drawBoard;
   drawBoard(); drawLog();
-  store.on("state", () => { drawBoard(); drawLog(); });
-  store.on("board", drawBoard);
+  store.on("state", () => { drawBoard(false); drawLog(); });
+  store.on("board", () => drawBoard(false));
   store.on("events", drawLog);
 }

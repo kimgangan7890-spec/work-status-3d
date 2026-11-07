@@ -13,19 +13,19 @@ export function publicStatus() {
       { id: "ops", name: "운영팀", order: 3 },
     ],
     agents: [
-      { id: "chief", name: "팀장", role: "조율·검수", status: "working", currentTaskId: "S3", note: "범위 정리와 점검", model: "샘플", teamId: "ops" },
-      { id: "claude", name: "디자이너", role: "화면·문서", status: "working", currentTaskId: "S1", note: "화면 초안 작성 중", model: "샘플", teamId: "design" },
-      { id: "gpt", name: "개발자", role: "구현·테스트", status: "idle", currentTaskId: null, note: "다음 작업 대기", model: "샘플", teamId: "dev" },
+      { id: "lead", name: "팀장", role: "조율·검수", status: "working", currentTaskId: "S3", note: "범위 정리와 점검", model: "샘플", teamId: "ops" },
+      { id: "designer", name: "디자이너", role: "화면·문서", status: "working", currentTaskId: "S1", note: "화면 초안 작성 중", model: "샘플", teamId: "design" },
+      { id: "developer", name: "개발자", role: "구현·테스트", status: "idle", currentTaskId: null, note: "다음 작업 대기", model: "샘플", teamId: "dev" },
       { id: "sample-d2", name: "디자이너 2", role: "아이콘·문구", status: "idle", currentTaskId: null, note: "다음 작업 대기", model: "샘플", teamId: "design" },
       { id: "sample-v2", name: "개발자 2", role: "테스트", status: "blocked", currentTaskId: "S5", note: "확인 필요", model: "샘플", teamId: "dev" },
     ],
     tasks: [
-      task("S1", "화면 초안", "claude", "z-a", 40, "doing"),
-      task("S2", "문서 정리", "claude", "z-a", 100, "done"),
-      task("S3", "범위 점검", "chief", "z-c", 20, "doing"),
-      task("S4", "데이터 저장 만들기", "gpt", "z-b", 0, "todo"),
-      task("S5", "테스트 작성", "gpt", "z-b", 60, "doing"),
-      task("S6", "배포 준비", "chief", "z-c", 0, "todo"),
+      task("S1", "화면 초안", "designer", "z-a", 40, "doing"),
+      task("S2", "문서 정리", "designer", "z-a", 100, "done"),
+      task("S3", "범위 점검", "lead", "z-c", 20, "doing"),
+      task("S4", "데이터 저장 만들기", "developer", "z-b", 0, "todo"),
+      task("S5", "테스트 작성", "developer", "z-b", 60, "doing"),
+      task("S6", "배포 준비", "lead", "z-c", 0, "todo"),
     ],
     events: [],
   };
@@ -33,16 +33,28 @@ export function publicStatus() {
 
 export function publicBoard() {
   return {
+    prd: [
+      { id: "P1", title: "사용자와 문제 정의", status: "approved" },
+      { id: "P2", title: "핵심 기능 요구사항", status: "review" },
+      { id: "P3", title: "성공 기준", status: "draft" },
+    ],
+    bp: [
+      { id: "B1", order: 3, area: "market", title: "목표 시장 규모 추정", status: "draft" },
+      { id: "B2", order: 1, area: "customer", title: "첫 고객군 정의", status: "approved", note: "예시 메모" },
+      { id: "B3", order: 4, area: "revenue", title: "수익 모델 초안", status: "review" },
+      { id: "B4", order: 5, area: "cost", title: "월 운영비 추정", status: "draft" },
+      { id: "B5", order: 2, area: "schedule", title: "출시 일정", status: "approved" },
+    ],
     mvp: [
-      { id: "M1", title: "핵심 기능 A", status: "in" },
-      { id: "M2", title: "핵심 기능 B", status: "in" },
+      { id: "M1", order: 2, title: "핵심 기능 A", status: "in", taskIds: ["S1", "S2"] },
+      { id: "M2", order: 1, title: "핵심 기능 B", status: "in", taskIds: ["S4"] },
       { id: "M3", title: "나중에 할 기능", status: "pending" },
       { id: "M4", title: "이번에는 제외", status: "out" },
     ],
     zones: [
-      { id: "z-a", name: "화면·문서", ownerAgentId: "claude", taskIds: ["S1", "S2"] },
-      { id: "z-b", name: "구현·테스트", ownerAgentId: "gpt", taskIds: ["S4", "S5"] },
-      { id: "z-c", name: "조율·점검", ownerAgentId: "chief", taskIds: ["S3", "S6"] },
+      { id: "z-a", name: "화면·문서", ownerAgentId: "designer", taskIds: ["S1", "S2"] },
+      { id: "z-b", name: "구현·테스트", ownerAgentId: "developer", taskIds: ["S4", "S5"] },
+      { id: "z-c", name: "조율·점검", ownerAgentId: "lead", taskIds: ["S3", "S6"] },
     ],
   };
 }

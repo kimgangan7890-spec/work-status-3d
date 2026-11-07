@@ -12,6 +12,13 @@ describe("공개 샘플 검사", () => {
     const d = sampleDir();
     for (const n of ["status.json", "board.json"]) expect(fs.readFileSync(path.resolve("public-sample", n), "utf8")).toBe(fs.readFileSync(path.join(d, n), "utf8"));
   });
+  it("샘플 에이전트 id는 중립적이고 고정 id(chief·claude·gpt)를 쓰지 않는다", () => {
+    const s = publicStatus(), ids = s.agents.map((a) => a.id);
+    expect(ids).toEqual(expect.arrayContaining(["lead", "designer", "developer"]));
+    expect(ids.some((i) => ["chief", "claude", "gpt"].includes(i))).toBe(false);
+    const text = JSON.stringify(s) + fs.readFileSync(path.resolve("public-sample/board.json"), "utf8");
+    expect(text).not.toMatch(/"(chief|claude|gpt)"/);
+  });
   it("실제 프로젝트명·모델명·경로·이메일·키가 섞이면 잡는다", () => {
     for (const bad of ["claude-sonnet-5-5", "/workspace/projects/x", "me@example.com", "sk-abcdefghijklmnopqrstuvwx", "OpenAI 연동", "총괄 확인"]) {
       const d = sampleDir(); const s = publicStatus(); s.tasks[0].title = bad.slice(0, 80);

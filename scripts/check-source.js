@@ -6,16 +6,16 @@ const BAD_NAME = [/^\.env/, /\.(png|jpe?g|gif|webp|mp4|mov|log)$/i, /^inbox.*\.j
 const BAD_DIR = new Set(["node_modules", "dist", "dist-public", "data", "reference_office", ".git", "verify_chief"]);
 const TEXT = /\.(js|mjs|json|jsonl|md|html|css|txt|yml|yaml)$|^\.gitignore$/i;
 const PATH_OK = new Set(["scripts/check-public.js", "scripts/check-source.js", "test/public.test.js"]); // 금지 경로를 일부러 적어 두는 파일
-const FAKE = [/abcdefghijklmnopqrstuvwx/, /pw-for-test-/, /틀린암호/, /someone\/repo/, /tok-SECRET-/, /pw-x-1234/, new RegExp("01234" + "56789")]; // 테스트가 일부러 쓰는 가짜 값
+const FAKE = [/abcdefghijklmnopqrstuvwx/, /pw-for-test-/, /틀린암호/, /someone\/repo/, /fixture-[\w-]+/, /test-password/, /pw-x-1234/, /tok-SECRET-123/, /not-a-status-fi/, new RegExp("01234" + "56789")]; // 테스트가 일부러 쓰는 가짜 값
 const EMAIL_OK = /@(example\.(com|org|net)|users\.noreply\.example)$/i;
-const URL_OK = /^https?:\/\/(localhost|127\.0\.0\.1|[\w.-]*example\.(com|org|net)|[\w.-]*\.example|registry\.npmjs\.org|api\.github\.com|raw\.githubusercontent\.com|www\.w3\.org|nodejs\.org|\$\{\w+\})([:/]|$)/i;
+const URL_OK = /^https?:\/\/(localhost|127\.0\.0\.1|api\.github\.com|github\.com|raw\.githubusercontent\.com|[\w.-]*example\.(com|org|net)|[\w.-]*\.example|registry\.npmjs\.org|www\.w3\.org|nodejs\.org|\$\{\w+\})([:/]|$)/i;
 
 const RULES = [
   ["절대 경로", /(\/home\/|\/workspace|\/Users\/|\/root\/|(?<![\w/])[A-Za-z]:\\(?!\/))/, true],
   ["이메일", /[\w.+-]+@[\w-]+\.[\w.-]+/g, "email"],
   ["전화번호", /(?<![\d.])0\d{1,2}-\d{3,4}-\d{4}(?!\d)|(?<![\d.])01\d{8,9}(?!\d)/, "fake"],
   ["토큰·키 모양", /sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{12,}|AIza[0-9A-Za-z_-]{20,}|xox[abp]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY/, "fake"],
-  ["고정 비밀번호 대입", /(password|passwd|secret|api[_-]?key|token)["']?\s*[:=]\s*["'][^"'\s]{8,}["']/i, "fake"],
+  ["고정 비밀번호 대입", /((?:[Pp]ass(?:word|wd)|PASS(?:WORD|WD)|[Ss]ecret|SECRET|[Aa]pi[_-]?[Kk]ey|API[_-]?KEY|[Tt]oken|TOKEN))["']?\s*[:=]\s*["'](?![A-Z][A-Z_]+["'])[^"'\s]{8,}["']/, "fake"],
 ];
 
 export function privateTerms() {

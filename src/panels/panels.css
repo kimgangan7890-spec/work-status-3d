@@ -97,7 +97,9 @@ body.has-cmd .pn-log { bottom: calc(var(--cmd-h, 100px) + 24px); max-height: min
 .ll-errors { margin-top: 2px; font-size: 12px; color: #ff9a9a; overflow-wrap: anywhere; }
 .ll-badge { margin-top: 4px; padding: 3px 8px; border-radius: 6px; font-size: 12px; background: #1f5a37; border: 1px solid #3fbf75; }
 .ll-warn { margin-top: 4px; font-size: 12px; color: #ffd98a; }
-.ll-badge[hidden], .ll-warn[hidden] { display: none; }
+.ll-badge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ll-home { padding: 1px 8px; }
+.ll-badge[hidden], .ll-warn[hidden], .ll-home[hidden] { display: none; }
 @media (max-width: 600px) { .ll-btn { min-height: 44px; } }
 
 /* ---- 메인 보드(DESIGN3.md §1~2): 항상 보이는 HTML 패널 ---- */
@@ -192,13 +194,160 @@ body.pre-login #scene, body.pre-login .pn-log, body.pre-login .pn-board .empty, 
 }
 body.pre-login #room-tags, body.pre-login .room-cards, body.pre-login .team-card, body.pre-login .tt-back, body.pre-login .team-cmd, body.pre-login .ag-cmd { display: none; }
 
-/* 단지 화면: 프로젝트(사무동) 선택 */
+/* 단지 화면: 프로젝트(사무동) 선택 (DESIGN6.md) */
 .campus { border-bottom: 1px solid rgba(160,180,255,.18); }
 .campus-bar { display: block; width: 100%; padding: 8px 16px; background: #1c2340; color: #f2f4ff; border: 0; text-align: left; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
 .campus-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; padding: 8px 12px; max-height: 40vh; overflow-y: auto; }
 .campus-card { text-align: left; padding: 8px 10px; background: #1a2038; color: #e6e9ff; border: 1px solid rgba(160,180,255,.25); border-radius: 6px; font: inherit; cursor: pointer; min-width: 0; }
+.campus-foot { display: flex; align-items: center; gap: 10px; padding: 0 12px 8px; flex-wrap: wrap; }
+.campus-refresh { padding: 6px 10px; min-height: 32px; background: transparent; color: #cdd5ff; border: 1px solid rgba(160,180,255,.35); border-radius: 6px; font: inherit; font-size: 13px; cursor: pointer; }
+.campus-refresh:disabled { opacity: .5; cursor: default; }
+.campus-note { font-size: 12px; color: #aab3d9; }
+.campus-note.err { color: #ff8f8f; }
 .campus-card.on { border-color: #8fb4ff; background: #232c52; }
 .campus-name { font-weight: 700; font-size: 14px; overflow-wrap: anywhere; }
 .campus-sum { margin-top: 2px; font-size: 12px; color: #aab3d9; }
 .campus-sum.warn { color: #ffb3a0; }
 .campus-sum.err { color: #ff8f8f; }
+
+/* PRD · MVP 구분과 진행도 3종 */
+.pg3 { display: grid; gap: 6px; margin-bottom: 10px; }
+.pg-row { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; align-items: baseline; }
+.pg-name { font-weight: 700; font-size: 16px; }
+.pg-pct { font-size: 16px; font-weight: 700; }
+.pg-what { grid-column: 1 / -1; font-size: 12px; color: #aab3d9; margin-bottom: 2px; }
+.pg-row.na .pg-pct { color: #8a90a0; }
+.role-note { font-size: 12px; color: #aab3d9; margin: -4px 0 6px; }
+.chip.prd-approved { background: #1f4a5a; border-color: #4fb6d9; }
+.chip.prd-review { background: #4a3d6a; border-color: #a98be0; }
+.chip.prd-draft { background: #4a4f5c; border-color: #8a90a0; }
+
+/* BP(사업계획): PRD 안의 하위 상자 */
+.pg-row.sub { margin-left: 14px; }
+.pg-row.sub .bar > i { background: #4fb6d9; }
+.bp { margin: 8px 0 12px; border: 1px solid rgba(160,180,255,.25); border-radius: 6px; overflow: hidden; }
+.bp-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; min-height: 44px; box-sizing: border-box; padding: 6px 12px; background: #1c2340; color: #f2f4ff; border: 0; font: inherit; text-align: left; cursor: pointer; }
+.bp-title { font-weight: 700; font-size: 16px; }
+.bp-head small { font-size: 13px; color: #aab3d9; text-align: right; }
+.bp .role-note, .bp .empty, .bp .bp-miss { margin: 6px 12px; }
+.bp-row { display: grid; grid-template-columns: 3em 1fr auto; gap: 2px 8px; align-items: center; padding: 6px 12px; border-top: 1px solid rgba(160,180,255,.12); }
+.bp-area { font-size: 13px; color: #aab3d9; }
+.bp-text { overflow-wrap: anywhere; font-size: 15px; }
+.bp-note { grid-column: 2 / -1; font-size: 12px; color: #aab3d9; overflow-wrap: anywhere; }
+.bp-miss { font-size: 12px; color: #ffd48a; }
+@media (max-width: 600px) {
+  .pg-row.sub { margin-left: 12px; }
+  .bp-row { grid-template-columns: 1fr auto; }
+  .bp-area { grid-column: 1; }
+  .bp-row .chip { grid-column: 2; grid-row: 1; justify-self: end; }
+  .bp-text { grid-column: 1 / -1; grid-row: 2; }
+  .bp-note { grid-column: 1 / -1; }
+}
+
+/* GitHub에서 불러오기 */
+.ll-gh { display: grid; gap: 4px; margin-top: 6px; }
+.ll-gh[hidden] { display: none; }
+.ll-gh input { font: inherit; font-size: 16px; color: #f2f4ff; background: #0f1424; border: 1px solid rgba(160,180,255,.3); border-radius: 6px; padding: 5px 8px; min-width: 0; }
+.ll-gh .ll-btn { justify-self: start; }
+.ll-gh-note { font-size: 12px; color: #aab3d9; }
+.ll { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.ll > .ll-msg, .ll > .ll-errors, .ll > .ll-badge, .ll > .ll-warn, .ll > .ll-gh { flex-basis: 100%; }
+
+.ll-auto { display: grid; gap: 4px; }
+.ll-auto .ll-btn { justify-self: start; }
+.ll-manual { margin-top: 2px; }
+.ll-manual summary { cursor: pointer; font-size: 13px; color: #aab3d9; margin: 4px 0; }
+.ll-manual input { display: block; width: 100%; box-sizing: border-box; margin-bottom: 4px; }
+.ll-auto input { font: inherit; font-size: 16px; color: #f2f4ff; background: #0f1424; border: 1px solid rgba(160,180,255,.3); border-radius: 6px; padding: 5px 8px; min-width: 0; }
+
+/* 에이전트 작업 화면 · 작업 순서 */
+.ag { cursor: pointer; }
+.ag.open { outline: 2px solid #8fb4ff; outline-offset: -2px; }
+.agd { margin: 6px 0 10px; padding: 8px 12px; background: #1a2038; border: 1px solid rgba(160,180,255,.25); border-left: 4px solid #8a90a0; border-radius: 6px; }
+.agd-head { display: flex; align-items: baseline; gap: 8px; }
+.agd-name { font-weight: 700; font-size: 16px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.agd-close { font: inherit; font-size: 13px; color: inherit; background: rgba(255,255,255,.12); border: 1px solid rgba(160,180,255,.3); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.agd-note { font-size: 13px; color: #aab3d9; margin: 4px 0; overflow-wrap: anywhere; }
+.agd-cur { margin: 6px 0; }
+.agd-cur-title { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.agd h4 { margin: 8px 0 4px; font-size: 13px; color: #aab3d9; }
+.agd-task { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; font-size: 14px; margin-bottom: 4px; }
+.agd-task .bar { grid-column: 1 / -1; height: 8px; }
+.agd-tid { color: #aab3d9; }
+.agd-ttl { overflow-wrap: anywhere; min-width: 0; }
+.agd-ev { font-size: 13px; color: #cdd3f5; overflow-wrap: anywhere; margin-bottom: 2px; }
+.chip small.next { background: #e0b43a; color: #14192a; border-radius: 999px; padding: 0 6px; font-weight: 700; }
+
+/* 단지는 한 렌더러를 공유한다. 카드가 키보드·스크린리더 경로를 제공한다. */
+#building-tags { position: fixed; inset: 0; pointer-events: none; z-index: 4; display: none; }
+body[data-view="campus"] #building-tags { display: block; }
+.building-tag { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; padding: 7px 10px; box-sizing: border-box; background: #192b40ed; color: #fff; border: 1px solid #819bb2; border-radius: 8px; font: 16px/1.3 system-ui, sans-serif; }
+.building-tag strong, .building-tag span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.building-tag span { font-size: 12px; }
+.building-tag.blocked { border-color: #fa8a83; }
+.building-tag.error { color: #c4cbd4; }
+.building-tag.new { box-shadow: 0 0 0 2px #e8be5b; }
+.building-tag[hidden] { display: none; }
+.campus-back { margin: 4px 12px; min-height: 44px; font: 16px system-ui, sans-serif; background: #2c4a6a; color: #fff; border: 1px solid #819bb2; border-radius: 6px; }
+body[data-view="campus"] .cmd-bar, body[data-view="campus"] .cmd-slot, body[data-view="campus"] .ag-box, body[data-view="campus"] .agd-box { display: none; }
+body[data-view="campus"].pre-login #scene { display: block; visibility: visible; }
+@media (max-width: 1039px) { #building-tags { display: none !important; } }
+
+body[data-view="campus"] .board-main, body[data-view="campus"] .pn-log { display: none; }
+
+.campus-grid[hidden] { display: none; }
+.building-tag { transform: translate(-50%, -100%); padding: 6px 8px; border-radius: 5px; background: #f4f5edee; color: #344950; border-color: #b0bcb5; box-shadow: 0 2px 8px #354c4920; }
+.building-tag strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow-wrap: anywhere; font-size: 13px; line-height: 1.25; }
+.building-tag span { font-size: 11px; }
+.building-tag.blocked { border-color: #c47c53; }
+.building-tag.error { color: #6c7778; }
+.building-tag.new { box-shadow: 0 0 0 1px #d4aa50; }
+.building-new { position: absolute; right: -3px; top: -3px; width: 7px; height: 7px; background: #e8b64e; border: 2px solid #fff; border-radius: 50%; }
+.building-new[hidden] { display: none; }
+
+@media (min-width: 1040px) and (max-width: 1100px) { .building-tag { padding: 5px 6px; } .building-tag strong { font-size: 12px; line-height: 1.1; } .building-tag span { font-size: 10px; } }
+
+/* GitHub 활동 연결 패널(ghconnect.js) */
+.ghc { display: grid; gap: 8px; margin-top: 8px; }
+.ghc-title { margin: 0; font-size: 16px; }
+.ghc-msg { font-size: 15px; color: #ffd98a; }
+.ghc-msg:empty { display: none; }
+.ghc-form { display: grid; gap: 6px; }
+.ghc-input { font: inherit; font-size: 16px; color: inherit; background: rgba(255,255,255,.08); border: 1px solid rgba(160,180,255,.3); border-radius: 6px; padding: 6px 10px; min-height: 44px; box-sizing: border-box; }
+.ghc-btn { font: inherit; font-size: 16px; color: inherit; background: rgba(255,255,255,.12); border: 1px solid rgba(160,180,255,.3); border-radius: 6px; padding: 4px 10px; min-height: 44px; cursor: pointer; }
+.ghc-btn:disabled { opacity: .5; cursor: default; }
+.ghc-note { margin: 0; font-size: 15px; color: #aab3d9; overflow-wrap: anywhere; }
+.ghc-err { margin: 0; font-size: 15px; color: #fa8a83; overflow-wrap: anywhere; }
+.ghc-head { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.ghc-login { overflow-wrap: anywhere; min-width: 0; }
+.ghc-list, .ghc-synclist { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ghc-label { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.ghc-name { overflow-wrap: anywhere; min-width: 0; }
+.ghc-priv { font-size: 12px; background: rgba(255,255,255,.14); border-radius: 999px; padding: 0 8px; }
+.ghc-count { font-size: 15px; color: #aab3d9; }
+.ghc-syncitem { font-size: 15px; overflow-wrap: anywhere; }
+.ghc-sync-stale, .ghc-sync-error { color: #fa8a83; }
+
+/* GitHub 활동 연결 패널 위치·사무동 카드의 GitHub 지표 줄(M2) */
+.ghc-wrap { margin: 8px 0; }
+.ghc-sum { font-size: 16px; cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.campus-gh { margin-top: 2px; font-size: 12px; color: #9fd2ff; overflow-wrap: anywhere; }
+.campus-gh[hidden] { display: none; }
+.campus-gh.alert { color: #ffb3a0; font-weight: 600; }
+.campus-gh.dim { opacity: .55; }
+.ghc-select { font: inherit; font-size: 16px; color: inherit; background: rgba(255,255,255,.08); border: 1px solid rgba(160,180,255,.3); border-radius: 6px; min-height: 44px; max-width: 100%; }
+.ghc-target { font-size: 15px; color: #aab3d9; overflow-wrap: anywhere; }
+.ghc-rownote { font-size: 15px; color: #ffd98a; overflow-wrap: anywhere; }
+.ghc-rownote:empty { display: none; }
+
+/* Device Flow 로그인 */
+.ghc-login-box, .ghc-device { display: grid; gap: 8px; }
+.ghc-btn-main { background: #2c4a9a; }
+.ghc-code { font: 700 28px/1.3 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; letter-spacing: .12em; padding: 8px 12px; background: rgba(0,0,0,.35); border: 1px solid rgba(160,180,255,.3); border-radius: 8px; text-align: center; user-select: all; overflow-wrap: anywhere; }
+.ghc-link { font-size: 16px; color: #9fd2ff; overflow-wrap: anywhere; }
+.ghc-left { font-variant-numeric: tabular-nums; }
+.ghc-method { font-size: 13px; background: rgba(255,255,255,.14); border-radius: 999px; padding: 0 8px; }
+.ghc-pat > .ghc-sum { color: #aab3d9; }
+
+/* 하늘 시간 전환 버튼 */
+.dm-btn { margin: 4px 0 0 6px; }

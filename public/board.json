@@ -1,14 +1,78 @@
 {
+  "prd": [
+    {
+      "id": "P1",
+      "title": "사용자와 문제 정의",
+      "status": "approved"
+    },
+    {
+      "id": "P2",
+      "title": "핵심 기능 요구사항",
+      "status": "review"
+    },
+    {
+      "id": "P3",
+      "title": "성공 기준",
+      "status": "draft"
+    }
+  ],
+  "bp": [
+    {
+      "id": "B1",
+      "order": 3,
+      "area": "market",
+      "title": "목표 시장 규모 추정",
+      "status": "draft"
+    },
+    {
+      "id": "B2",
+      "order": 1,
+      "area": "customer",
+      "title": "첫 고객군 정의",
+      "status": "approved",
+      "note": "예시 메모"
+    },
+    {
+      "id": "B3",
+      "order": 4,
+      "area": "revenue",
+      "title": "수익 모델 초안",
+      "status": "review"
+    },
+    {
+      "id": "B4",
+      "order": 5,
+      "area": "cost",
+      "title": "월 운영비 추정",
+      "status": "draft"
+    },
+    {
+      "id": "B5",
+      "order": 2,
+      "area": "schedule",
+      "title": "출시 일정",
+      "status": "approved"
+    }
+  ],
   "mvp": [
     {
       "id": "M1",
+      "order": 2,
       "title": "핵심 기능 A",
-      "status": "in"
+      "status": "in",
+      "taskIds": [
+        "S1",
+        "S2"
+      ]
     },
     {
       "id": "M2",
+      "order": 1,
       "title": "핵심 기능 B",
-      "status": "in"
+      "status": "in",
+      "taskIds": [
+        "S4"
+      ]
     },
     {
       "id": "M3",
@@ -25,7 +89,7 @@
     {
       "id": "z-a",
       "name": "화면·문서",
-      "ownerAgentId": "claude",
+      "ownerAgentId": "designer",
       "taskIds": [
         "S1",
         "S2"
@@ -34,7 +98,7 @@
     {
       "id": "z-b",
       "name": "구현·테스트",
-      "ownerAgentId": "gpt",
+      "ownerAgentId": "developer",
       "taskIds": [
         "S4",
         "S5"
@@ -43,7 +107,7 @@
     {
       "id": "z-c",
       "name": "조율·점검",
-      "ownerAgentId": "chief",
+      "ownerAgentId": "lead",
       "taskIds": [
         "S3",
         "S6"

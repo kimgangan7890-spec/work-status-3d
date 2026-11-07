@@ -209,3 +209,41 @@ describe("rooms.js DOM", () => {
     expect(f).toEqual([true, false, true]);
   });
 });
+
+describe("단지 화면 상태", () => {
+  it("Esc 한 번에 방→층→단지 한 단계만 이동한다", () => {
+    const { doc, win } = fakeEnv(); const s = fakeStore(mk(2)); const view = createView(s, {doc,win,select:()=>{}});
+    view.configureCampus(2,true);view.enterCampus();expect(view.get().mode).toBe("campus");
+    s.emit("state",{state:s.state});expect(view.get().mode).toBe("campus");
+    view.leaveCampus();view.enter("t0");
+    let prevented=0;doc.dispatch("keydown",{key:"Escape",preventDefault:()=>prevented++});expect(view.get().mode).toBe("floor");
+    doc.dispatch("keydown",{key:"Escape",preventDefault:()=>prevented++});expect(view.get().mode).toBe("campus");expect(prevented).toBe(2);
+    view.configureCampus(2,false);expect(view.get().mode).not.toBe("campus");expect(view.enterCampus()).toBe(false);
+    view.configureCampus(1,true);expect(view.enterCampus()).toBe(false);
+  });
+});
+
+describe("단지에서 다른 사무동으로 들어갈 때", () => {
+  it("이전 프로젝트의 팀 구성이 아니라 새 상태로 첫 화면(층 전체)을 정한다", () => {
+    const { doc, win } = fakeEnv(); const s = fakeStore(mk(1)); const view = createView(s, { doc, win, select: () => {} });
+    view.configureCampus(2, true); view.enterCampus();
+    view.leaveCampus({ switching: true }); expect(view.get().mode).toBe("room"); // 새 상태 전: 이전(1팀) 기준
+    s.set(mk(3)); expect(view.get().mode).toBe("floor"); // 같은 팀 id(t0)가 있어도 방에 머물지 않는다
+  });
+  it("같은 사무동으로 돌아가면(switching 없음) 다음 상태에도 화면을 바꾸지 않는다", () => {
+    const { doc, win } = fakeEnv(); const s = fakeStore(mk(3)); const view = createView(s, { doc, win, select: () => {} });
+    view.configureCampus(2, true); view.enterCampus(); view.leaveCampus(); view.enter("t1");
+    s.set(mk(3)); expect(view.get()).toEqual({ mode: "room", teamId: "t1" });
+  });
+});
+
+describe("단지 화면 보강", () => {
+  it("팀 1개 상태가 와도 단지 화면을 유지하고, 이미 처리된 Esc는 무시한다", () => {
+    const { doc, win } = fakeEnv(); const s = fakeStore(mk(1)); const view = createView(s, { doc, win, select: () => {} });
+    view.configureCampus(2, true); view.enterCampus();
+    s.set(mk(1)); expect(view.get().mode).toBe("campus");
+    view.leaveCampus(); expect(view.get().mode).toBe("room");
+    doc.dispatch("keydown", { key: "Escape", defaultPrevented: true, preventDefault: () => {} }); expect(view.get().mode).toBe("room");
+    doc.dispatch("keydown", { key: "Escape", preventDefault: () => {} }); expect(view.get().mode).toBe("campus");
+  });
+});
